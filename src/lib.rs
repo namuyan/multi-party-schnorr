@@ -15,7 +15,10 @@
 */
 extern crate centipede;
 extern crate curv;
+extern crate pyo3;
+
 pub mod protocols;
+pub mod python;
 
 #[derive(Copy, PartialEq, Eq, Clone, Debug)]
 pub enum Error {
