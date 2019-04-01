@@ -1,6 +1,8 @@
 use crate::protocols::aggsig::{verify, verify_partial, EphemeralKey, KeyAgg, KeyPair};
 use crate::python::utils::{bytes2point,bigint2bytes};
 use crate::python::pykeypair::PyKeyPair;
+use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
+use curv::cryptographic_primitives::hashing::traits::Hash;
 use curv::cryptographic_primitives::commitments::hash_commitment::HashCommitment;
 use curv::cryptographic_primitives::commitments::traits::Commitment;
 use curv::elliptic::curves::traits::{ECPoint, ECScalar};
@@ -38,6 +40,39 @@ impl PyEphemeralKey {
             &keypair.public.bytes_compressed_to_big_int());
         let keypair = keypair.clone();
         Ok(PyEphemeralKey {keypair, commitment, blind_factor})
+    }
+
+    fn get_single_sign(&self, _py: Python, message: &PyBytes) -> Py<PyTuple> {
+        let message = message.as_bytes();
+        let base_point: GE = ECPoint::generator();
+        let hash_private_key_message =
+            HSha256::create_hash(&[&self.keypair.secret.to_big_int(), &BigInt::from(message)]);
+        let ephemeral_private_key: FE = ECScalar::from(&hash_private_key_message);
+        let ephemeral_public_key = base_point.scalar_mul(&ephemeral_private_key.get_element());
+        let (commitment, blind_factor) =
+            HashCommitment::create_commitment(&ephemeral_public_key.bytes_compressed_to_big_int());
+        // compute c = H0(Rtag || apk || message)
+        let c = EphemeralKey::hash_0(
+            &ephemeral_public_key,
+            &self.keypair.public,
+            message,
+            false,
+        );
+        // sign
+        let c_fe: FE = ECScalar::from(&c);
+        let a_fe: FE = ECScalar::from(&BigInt::from(1));
+        let s_fe = ephemeral_private_key.clone() + (c_fe * self.keypair.secret.clone() * a_fe);
+        let s_tag = s_fe.to_big_int();
+        // signature s:
+        let (R, s) = EphemeralKey::add_signature_parts(
+            s_tag,
+            &BigInt::from(0),
+            &ephemeral_public_key,
+        );
+        PyTuple::new(_py, &[
+            PyBytes::new(_py, &bigint2bytes(&R).unwrap()),
+            PyBytes::new(_py, &bigint2bytes(&s).unwrap()),
+        ])
     }
 
     fn check_commitments(&self) -> bool {
