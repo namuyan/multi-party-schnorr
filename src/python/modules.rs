@@ -1,5 +1,6 @@
 use crate::python::pykeypair::*;
-use crate::python::bin2pub::public_from_bytes;
+use crate::python::pyagg::{PyAggregate,PyEphemeralKey};
+use crate::python::utils::bytes2point;
 use crate::protocols::aggsig::verify;
 use curv::BigInt;
 use pyo3::prelude::*;
@@ -8,11 +9,11 @@ use pyo3::types::PyBytes;
 
 
 #[pyfunction]
-fn verify_aggregate_sign(sig: &PyBytes, R: &PyBytes, apk: &PyBytes,
-                             message: &PyBytes, is_musig: bool) -> bool {
+fn verify_aggregate_sign(sig: &PyBytes, R: &PyBytes, apk: &PyBytes, message: &PyBytes, is_musig: bool)
+    -> bool {
     let sig = BigInt::from(sig.as_bytes());
     let R = BigInt::from(R.as_bytes());
-    let apk = match public_from_bytes(apk.as_bytes()) {
+    let apk = match bytes2point(apk.as_bytes()) {
         Ok(apk) => apk,
         Err(_) => return false
     };
