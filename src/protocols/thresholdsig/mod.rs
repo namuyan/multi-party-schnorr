@@ -45,7 +45,7 @@ pub struct Parameters {
     pub threshold: usize,   //t
     pub share_count: usize, //n
 }
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SharedKeys {
     pub y: GE,
     pub x_i: FE,
@@ -249,9 +249,10 @@ impl LocalSig {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Signature {
-    sigma: FE,
-    v: GE,
+    pub sigma: FE,
+    pub v: GE,
 }
 
 impl Signature {

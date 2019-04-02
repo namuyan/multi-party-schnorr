@@ -10,6 +10,10 @@ authors = [
 name = "multi_party_schnorr"
 crate-type = ["lib", "cdylib"]
 
+[dependencies]
+serde = "1.0"
+serde_derive = "1.0"
+
 [dependencies.curv]
 git = "https://github.com/KZen-networks/curv"
 features = ["ec_secp256k1"]
