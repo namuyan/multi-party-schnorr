@@ -161,19 +161,20 @@ impl PyAggregate {
     }
 
     fn apk(&self, _py: Python) -> Py<PyBytes> {
-        let bytes = self.agg.apk.get_element().serialize();
+        let mut bytes = self.agg.apk.get_element().serialize();
+        if self.is_musig {
+            bytes[0] += 3; // 0x02 0x03 0x04 => 0x05 0x06 0x07
+        }
         PyBytes::new(_py, &bytes)
     }
 
-    fn add_signature_parts(&self, _py: Python,  s1: &PyBytes, s2: &PyBytes) -> Py<PyTuple> {
+    fn add_signature_parts(&self, _py: Python,  s1: &PyBytes, s2: &PyBytes) -> Py<PyBytes> {
         let s1 = BigInt::from(s1.as_bytes());
         let s2 = BigInt::from(s2.as_bytes());
-        let (R, s) = EphemeralKey::add_signature_parts(s1, &s2, &self.r_tag);
-        let R = bigint2bytes(&R).unwrap();
-        let s = bigint2bytes(&s).unwrap();
-        PyTuple::new(_py, &[
-            PyBytes::new(_py, &R),
-            PyBytes::new(_py, &s),
-        ])
+        let s1_fe: FE = ECScalar::from(&s1);
+        let s2_fe: FE = ECScalar::from(&s2);
+        let s1_plus_s2 = s1_fe.add(&s2_fe.get_element());
+        let s = bigint2bytes(&s1_plus_s2.to_big_int()).unwrap();
+        PyBytes::new(_py, &s)
     }
 }

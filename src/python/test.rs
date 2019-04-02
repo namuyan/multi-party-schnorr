@@ -3,6 +3,7 @@
 mod test {
     use crate::python::utils::*;
     use curv::elliptic::curves::traits::{ECPoint, ECScalar};
+    use curv::arithmetic::traits::Converter;
     use curv::{BigInt, FE, GE};
 
     #[test]
@@ -38,5 +39,12 @@ mod test {
         g = a1 + g;
         g = g.sub_point(&GE::generator().get_element());
         assert_eq!(r_direct, g);
+    }
+
+    #[test]
+    fn zero_bigint_test() {
+        let vec = BigInt::to_vec(&BigInt::from(0));
+        let comp: Vec<u8> = vec![];
+        assert_ne!(vec, comp);
     }
 }
