@@ -126,16 +126,18 @@ impl PyAggregate {
             ValueError::py_err("not found your public key in signers"))?;
         let agg = KeyAgg::key_aggregation_n(&pks, party_index);
         // compute R' = R1+R2:
-        let mut r_hat = GE::generator();
+        let mut points = vec![];
         for eph in ephemeral.into_iter() {
             let eph: &PyBytes = eph.try_into()?;
-            let eph = match bytes2point(eph.as_bytes()) {
-                Ok(eph) => eph,
+            match bytes2point(eph.as_bytes()) {
+                Ok(eph) => points.push(eph),
                 Err(_) => return Err(ValueError::py_err("invalid ephemeral key, 33 or 65 bytes length?"))
             };
-            r_hat = r_hat.add_point(&eph.get_element());
-        }
-        r_hat = r_hat.sub_point(&GE::generator().get_element());
+        };
+        let mut r_hat = points.remove(0);
+        for p in points {
+            r_hat = p + r_hat;
+        };
         Ok(PyAggregate {keypair, eph, agg, r_tag: r_hat, is_musig})
     }
 
