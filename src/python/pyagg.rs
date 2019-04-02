@@ -1,6 +1,6 @@
 use crate::protocols::aggsig::{verify, verify_partial, EphemeralKey, KeyAgg, KeyPair};
 use crate::python::utils::{bytes2point,bigint2bytes};
-use crate::python::pykeypair::PyKeyPair;
+use crate::python::pykeypair::*;
 use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
 use curv::cryptographic_primitives::hashing::traits::Hash;
 use curv::cryptographic_primitives::commitments::hash_commitment::HashCommitment;
@@ -25,12 +25,9 @@ pub struct PyEphemeralKey {
 impl PyEphemeralKey {
     #[new]
     fn new(obj: &PyRawObject) {
-        let ec_point: GE = ECPoint::generator();
-        let secret: FE = ECScalar::new_random();
-        let public: GE = ec_point.scalar_mul(&secret.get_element());
+        let keypair = generate_keypair();
         let (commitment, blind_factor) = HashCommitment::create_commitment(
-            &public.bytes_compressed_to_big_int());
-        let keypair = PyKeyPair {secret, public};
+            &keypair.public.bytes_compressed_to_big_int());
         obj.init(PyEphemeralKey {keypair, commitment, blind_factor});
     }
 

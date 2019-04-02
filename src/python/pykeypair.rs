@@ -19,10 +19,7 @@ pub struct PyKeyPair {
 impl PyKeyPair {
     #[new]
     fn new(obj: &PyRawObject) {
-        let ec_point: GE = ECPoint::generator();
-        let secret: FE = ECScalar::new_random();
-        let public: GE = ec_point.scalar_mul(&secret.get_element());
-        obj.init(PyKeyPair {secret, public});
+        obj.init(generate_keypair());
     }
 
     #[classmethod]
@@ -54,4 +51,11 @@ impl PyKeyPair {
         let point = point.get_element().serialize();
         Ok(PyObject::from(PyBytes::new(_py, &point)))
     }
+}
+
+pub fn generate_keypair() -> PyKeyPair {
+    let ec_point: GE = ECPoint::generator();
+    let secret: FE = ECScalar::new_random();
+    let public: GE = ec_point.scalar_mul(&secret.get_element());
+    PyKeyPair {secret, public}
 }
