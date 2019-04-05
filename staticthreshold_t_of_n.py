@@ -90,5 +90,5 @@ print("finish", round(time() - start, 3), "Sec")
 
 sign_start = time()
 r = multi_party_schnorr.verify_threshold_sign(sigma, Y, V, msg)
-print("verify?", r, round(time()-sign_start, 3), "Sec")
+print("verify?", r, round((time()-sign_start)*1000), "mSec")
 print("finish", round(time() - start, 3), "Sec")
