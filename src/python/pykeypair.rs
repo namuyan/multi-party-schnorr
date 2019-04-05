@@ -1,12 +1,8 @@
-use crate::protocols::aggsig::{verify, verify_partial, EphemeralKey, KeyAgg, KeyPair};
 use crate::python::utils::{bytes2point,bigint2bytes};
-use curv::cryptographic_primitives::commitments::hash_commitment::HashCommitment;
-use curv::cryptographic_primitives::commitments::traits::Commitment;
 use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use curv::{BigInt, FE, GE};
 use pyo3::prelude::*;
-use pyo3::exceptions::ValueError;
-use pyo3::types::{PyBytes,PyBool,PyList,PyTuple,PyType,PyAny};
+use pyo3::types::{PyBytes,PyTuple,PyType};
 
 #[pyclass]
 #[derive(Clone)]
@@ -23,7 +19,7 @@ impl PyKeyPair {
     }
 
     #[classmethod]
-    fn from_secret_key(cls: &PyType, secret: &PyBytes) -> PyResult<PyKeyPair> {
+    fn from_secret_key(_cls: &PyType, secret: &PyBytes) -> PyResult<PyKeyPair> {
         let secret = secret.as_bytes();
         let ec_point: GE = ECPoint::generator();
         let secret: FE = ECScalar::from(&BigInt::from(secret));

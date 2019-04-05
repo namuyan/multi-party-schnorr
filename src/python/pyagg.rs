@@ -9,7 +9,7 @@ use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use curv::{BigInt, FE, GE};
 use pyo3::prelude::*;
 use pyo3::exceptions::ValueError;
-use pyo3::types::{PyBytes,PyBool,PyList,PyTuple,PyType,PyAny};
+use pyo3::types::{PyBytes,PyList,PyTuple,PyType};
 
 
 #[pyclass]
@@ -32,7 +32,7 @@ impl PyEphemeralKey {
     }
 
     #[classmethod]
-    fn from_keypair(cls: &PyType, keypair: &PyKeyPair) -> PyResult<PyEphemeralKey> {
+    fn from_keypair(_cls: &PyType, keypair: &PyKeyPair) -> PyResult<PyEphemeralKey> {
         let (commitment, blind_factor) = HashCommitment::create_commitment(
             &keypair.public.bytes_compressed_to_big_int());
         let keypair = keypair.clone();
@@ -46,8 +46,8 @@ impl PyEphemeralKey {
             HSha256::create_hash(&[&self.keypair.secret.to_big_int(), &BigInt::from(message)]);
         let ephemeral_private_key: FE = ECScalar::from(&hash_private_key_message);
         let ephemeral_public_key = base_point.scalar_mul(&ephemeral_private_key.get_element());
-        let (commitment, blind_factor) =
-            HashCommitment::create_commitment(&ephemeral_public_key.bytes_compressed_to_big_int());
+        //let (commitment, blind_factor) =
+        //    HashCommitment::create_commitment(&ephemeral_public_key.bytes_compressed_to_big_int());
         // compute c = H0(Rtag || apk || message)
         let c = EphemeralKey::hash_0(
             &ephemeral_public_key,
@@ -93,7 +93,7 @@ pub struct PyAggregate {
 #[pymethods]
 impl PyAggregate {
     #[classmethod]
-    fn generate(cls: &PyType, signers: &PyList, ephemeral: &PyList, keypair: &PyKeyPair, eph: &PyEphemeralKey)
+    fn generate(_cls: &PyType, signers: &PyList, ephemeral: &PyList, keypair: &PyKeyPair, eph: &PyEphemeralKey)
         -> PyResult<PyAggregate> {
         // check signature number
         let keypair = keypair.clone();

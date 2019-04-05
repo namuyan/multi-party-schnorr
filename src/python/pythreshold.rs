@@ -36,7 +36,7 @@ impl PyThresholdKey {
     }
 
     #[classmethod]
-    fn from_secret_key(cls: &PyType, t: usize, n: usize, secret: &PyBytes, index: Option<usize>)
+    fn from_secret_key(_cls: &PyType, t: usize, n: usize, secret: &PyBytes, index: Option<usize>)
         -> PyResult<PyThresholdKey> {
         let ec_point: GE = ECPoint::generator();
         let secret: FE = ECScalar::from(&BigInt::from(secret.as_bytes()));

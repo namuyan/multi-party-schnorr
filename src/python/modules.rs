@@ -19,7 +19,7 @@ fn verify_aggregate_sign(_py: Python, sig: &PyBytes, R: &PyBytes, apk: &PyBytes,
     let is_musig = match is_musig {
         Some(is_musig) => is_musig,
         None => match decode_public_bytes(apk.as_bytes()) {
-            Ok((is_musig, prefix)) => is_musig,
+            Ok((is_musig, _prefix)) => is_musig,
             Err(_) => return Err(ValueError::py_err("cannot find prefix and is_musig"))
         }
     };
