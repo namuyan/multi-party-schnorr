@@ -43,10 +43,7 @@ impl PyKeyPair {
     }
     /// do not forget to pass through a hash function
     fn get_shared_point(&self, _py: Python, public: &PyBytes) -> PyResult<PyObject> {
-        let public: GE = match bytes2point(public.as_bytes()){
-            Ok(public) => public,
-            Err(_) => return Err(ValueError::py_err("invalid public key, 33 or 65 bytes length?"))
-        };
+        let public: GE = bytes2point(public.as_bytes())?;
         let point: GE = public.scalar_mul(&self.secret.get_element());
         let point = point.get_element().serialize();
         Ok(PyObject::from(PyBytes::new(_py, &point)))

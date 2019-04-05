@@ -1,14 +1,19 @@
+use curv::cryptographic_primitives::secret_sharing::feldman_vss::{VerifiableSS, ShamirSecretSharing};
 use curv::elliptic::curves::traits::ECPoint;
-use curv::{BigInt,FE,GE,PK};
+use curv::{BigInt,GE,PK};
 use curv::arithmetic::traits::Converter;
 use curv::ErrorKey;
+use pyo3::prelude::*;
+use pyo3::exceptions::ValueError;
+use pyo3::types::{PyList, PyBytes, PyTuple};
+
 
 /// Bitcoin public key format converter
 /// compressed key   : 2 or 3 prefix + X
 /// uncompressed key : 4 prefix      + X + Y
-pub fn bytes2point(bytes: &[u8]) -> Result<GE, ErrorKey> {
+pub fn bytes2point(bytes: &[u8]) -> PyResult<GE> {
     let len = bytes.len();
-    match decode_public_bytes(bytes) {
+    let result = match decode_public_bytes(bytes) {
         Ok((is_musig, prefix)) => {
             if len == 33 && (prefix == 2 || prefix == 3) {
                 let mut bytes = bytes.to_vec();
@@ -16,7 +21,7 @@ pub fn bytes2point(bytes: &[u8]) -> Result<GE, ErrorKey> {
                     bytes[0] -= 3;
                 }
                 let public = PK::from_slice(&bytes)
-                    .map_err(|_| ErrorKey::InvalidPublicKey)?;
+                    .map_err(|_| ValueError::py_err("decode failed key"))?;
                 GE::from_bytes(&public.serialize_uncompressed()[1..])
             }else if len == 65 && prefix == 4 {
                 GE::from_bytes(&bytes[1..])
@@ -25,7 +30,8 @@ pub fn bytes2point(bytes: &[u8]) -> Result<GE, ErrorKey> {
             }
         },
         Err(err) => Err(err)
-    }
+    };
+    result.map_err(|_| ValueError::py_err("invalid key"))
 }
 
 /// Mpz bigint to 32bytes big endian
@@ -54,4 +60,46 @@ pub fn decode_public_bytes(bytes: &[u8]) -> Result<(bool, u8), ErrorKey> {
         },
         None => Err(ErrorKey::InvalidPublicKey)
     }
+}
+
+pub fn pylist2points(list: &PyList) -> PyResult<Vec<GE>> {
+    let mut tmp = Vec::new();
+    for b in list.into_iter() {
+        let b: &PyBytes = b.try_into()?;
+        let p = bytes2point(b.as_bytes())?;
+        tmp.push(p);
+    };
+    Ok(tmp)
+}
+
+pub fn pylist2bigints(list: &PyList) -> PyResult<Vec<BigInt>> {
+    let mut tmp = Vec::with_capacity(list.len());
+    for b in list.into_iter() {
+        let b: &PyBytes = b.try_into()?;
+        let int = BigInt::from(b.as_bytes());
+        tmp.push(int);
+    };
+    Ok(tmp)
+}
+
+pub fn pylist2vss(py: Python, t: usize, n: usize, vss_points: &PyList) -> PyResult<Vec<VerifiableSS>> {
+    let mut tmp = Vec::with_capacity(vss_points.len());
+    for point in vss_points.into_iter() {
+        let point: &PyList = match point.try_into() {
+            Ok(p) => p,
+            Err(_) => {
+                let point: &PyTuple = point.try_into()?;
+                PyList::new(py, point.as_slice())
+            }
+        };
+        let point = pylist2points(point)?;
+        tmp.push(VerifiableSS {
+            parameters: ShamirSecretSharing {
+                threshold: t,
+                share_count: n
+            },
+            commitments: point
+        });
+    }
+    Ok(tmp)
 }

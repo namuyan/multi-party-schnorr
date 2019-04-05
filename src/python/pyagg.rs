@@ -110,10 +110,7 @@ impl PyAggregate {
         let mut party_index: Option<usize> = None;
         for (index, key) in signers.into_iter().enumerate() {
             let key: &PyBytes = key.try_into()?;
-            let public = match bytes2point(key.as_bytes()) {
-                Ok(public) => public,
-                Err(_) => return Err(ValueError::py_err("invalid public key, 33 or 65 bytes length?"))
-            };
+            let public = bytes2point(key.as_bytes())?;
             pks.push(public);
             if public == keypair.public {
                 party_index = Some(index)
@@ -126,10 +123,8 @@ impl PyAggregate {
         let mut points = vec![];
         for eph in ephemeral.into_iter() {
             let eph: &PyBytes = eph.try_into()?;
-            match bytes2point(eph.as_bytes()) {
-                Ok(eph) => points.push(eph),
-                Err(_) => return Err(ValueError::py_err("invalid ephemeral key, 33 or 65 bytes length?"))
-            };
+            let eph = bytes2point(eph.as_bytes())?;
+            points.push(eph);
         };
         let mut r_hat = points.remove(0);
         for p in points {
