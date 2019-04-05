@@ -30,9 +30,10 @@ Get Started
 
 Install
 ----
-* Please use python3.5 or more.  
-* install by pip `pip3 install --user git+http://github.com/namuyan/multi-party-schnorr.git`
-* How to use? please look at examples `*.py`.
+Please use python3.5 or more  
+Install by pip `pip3 install --user git+http://github.com/namuyan/multi-party-schnorr.git`  
+How to use? please look at examples `*.py`  
+Cannot use on windows? please read a [issue/39](https://github.com/KZen-networks/curv/issues/39)  
 
 Development Process
 -------------------
