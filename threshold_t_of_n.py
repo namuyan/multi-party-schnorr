@@ -5,11 +5,11 @@ start = time()
 t = 2  # threshold
 n = 5  # signers
 m = 4  # signed
-pair0 = multi_party_schnorr.PyThresholdKey(t, n)
-pair1 = multi_party_schnorr.PyThresholdKey(t, n)
-pair2 = multi_party_schnorr.PyThresholdKey(t, n)
-pair3 = multi_party_schnorr.PyThresholdKey(t, n)
-pair4 = multi_party_schnorr.PyThresholdKey(t, n)
+pair0 = multi_party_schnorr.PyThresholdKey.generate(t, n)
+pair1 = multi_party_schnorr.PyThresholdKey.generate(t, n)
+pair2 = multi_party_schnorr.PyThresholdKey.generate(t, n)
+pair3 = multi_party_schnorr.PyThresholdKey.generate(t, n)
+pair4 = multi_party_schnorr.PyThresholdKey.generate(t, n)
 
 vss0, sec0 = pair0.get_variable_secret_sharing()
 vss1, sec1 = pair1.get_variable_secret_sharing()
@@ -35,10 +35,11 @@ print("share3", share3.hex())
 print("share4", share4.hex())
 print("finish", round(time() - start, 3), "Sec")
 
-eph0 = multi_party_schnorr.PyThresholdKey(t, m)
-eph1 = multi_party_schnorr.PyThresholdKey(t, m)
-eph2 = multi_party_schnorr.PyThresholdKey(t, m)
-eph3 = multi_party_schnorr.PyThresholdKey(t, m)
+parties_index = [0, 1, 2, 3]
+eph0 = multi_party_schnorr.PyThresholdKey.generate(t, m, parties_index)
+eph1 = multi_party_schnorr.PyThresholdKey.generate(t, m, parties_index)
+eph2 = multi_party_schnorr.PyThresholdKey.generate(t, m, parties_index)
+eph3 = multi_party_schnorr.PyThresholdKey.generate(t, m, parties_index)
 
 eph_vss0, eph_sec0 = eph0.get_variable_secret_sharing()
 eph_vss1, eph_sec1 = eph1.get_variable_secret_sharing()
@@ -74,7 +75,6 @@ print("gamma2", gamma2.hex())
 print("gamma3", gamma3.hex())
 
 gammas = [gamma0, gamma1, gamma2, gamma3]
-parties_index = [x.my_index for x in (pair0, pair1, pair2, pair3)]
 print("parties_index", parties_index)
 sigma = multi_party_schnorr.summarize_local_signature(t, n, m, e0, gammas, parties_index, vss_points, eph_vss_points)
 print("finish", round(time() - start, 3), "Sec")

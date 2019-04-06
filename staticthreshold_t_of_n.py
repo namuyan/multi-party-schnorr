@@ -8,11 +8,11 @@ start = time()
 t = 2  # threshold
 n = 5  # signers
 m = 4  # signed
-pair0 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, n, a2b_hex(keys[0]))
-pair1 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, n, a2b_hex(keys[1]))
-pair2 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, n, a2b_hex(keys[2]))
-pair3 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, n, a2b_hex(keys[3]))
-pair4 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, n, a2b_hex(keys[4]))
+pair0 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, n, a2b_hex(keys[0]), 0)
+pair1 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, n, a2b_hex(keys[1]), 1)
+pair2 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, n, a2b_hex(keys[2]), 2)
+pair3 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, n, a2b_hex(keys[3]), 3)
+pair4 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, n, a2b_hex(keys[4]), 4)
 
 vss0, sec0 = [a2b_hex(x) for x in vss[0]], [a2b_hex(s) for s in sec[0]]
 vss1, sec1 = [a2b_hex(x) for x in vss[1]], [a2b_hex(s) for s in sec[1]]
@@ -40,10 +40,10 @@ print("share3", share3.hex())
 print("share4", share4.hex())
 print("finish", round(time() - start, 3), "Sec")
 
-eph0 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, m, a2b_hex(eph_keys[0]))
-eph1 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, m, a2b_hex(eph_keys[1]))
-eph2 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, m, a2b_hex(eph_keys[2]))
-eph3 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, m, a2b_hex(eph_keys[3]))
+eph0 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, m, a2b_hex(eph_keys[0]), 0)
+eph1 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, m, a2b_hex(eph_keys[1]), 1)
+eph2 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, m, a2b_hex(eph_keys[2]), 2)
+eph3 = multi_party_schnorr.PyThresholdKey.from_secret_key(t, m, a2b_hex(eph_keys[3]), 3)
 
 eph_vss0, eph_sec0 = [a2b_hex(x) for x in eph_vss[0]], [a2b_hex(s) for s in eph_sec[0]]
 eph_vss1, eph_sec1 = [a2b_hex(x) for x in eph_vss[1]], [a2b_hex(s) for s in eph_sec[1]]

@@ -9,17 +9,18 @@ use curv::arithmetic::traits::Samplable;
 use curv::{BigInt, FE, GE};
 use pyo3::prelude::*;
 use pyo3::exceptions::ValueError;
-use pyo3::types::{PyBytes,PyList,PyTuple,PyType};
+use pyo3::types::{PyBytes,PyList,PyTuple,PyLong,PyType};
 use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
 
 
 #[pyclass]
-#[derive(Clone)]
 pub struct PyThresholdKey {
     #[pyo3(get)]
     pub keypair: PyKeyPair,
     #[pyo3(get)]
     pub my_index: Option<usize>,
+    #[pyo3(get)]
+    pub parties_index: Vec<usize>,
     #[pyo3(get)]
     pub t: usize, // threshold
     #[pyo3(get)]
@@ -28,22 +29,26 @@ pub struct PyThresholdKey {
 
 #[pymethods]
 impl PyThresholdKey {
-    #[new]
-    fn new(obj: &PyRawObject, t: usize, n: usize) {
+    #[classmethod]
+    fn generate(_cls: &PyType, _py: Python, t: usize, n: usize, parties_index: Option<&PyList>)
+        -> PyResult<PyThresholdKey> {
+        let parties_index = option_list2parties_index(_py, n, parties_index)?;
         let my_index = None;  // unknown at this point
         let keypair = generate_keypair();
-        obj.init(PyThresholdKey { keypair, my_index, t, n});
+        //obj.init(PyThresholdKey { keypair, my_index, parties_index, t, n});
+        Ok(PyThresholdKey { keypair, my_index, parties_index, t, n})
     }
 
     #[classmethod]
-    fn from_secret_key(_cls: &PyType, t: usize, n: usize, secret: &PyBytes, index: Option<usize>)
+    fn from_secret_key(_cls: &PyType, _py: Python, t: usize, n: usize, secret: &PyBytes, my_index: usize, parties_index: Option<&PyList>)
         -> PyResult<PyThresholdKey> {
         let ec_point: GE = ECPoint::generator();
         let secret: FE = ECScalar::from(&BigInt::from(secret.as_bytes()));
         let public: GE = ec_point.scalar_mul(&secret.get_element());
         let keypair = PyKeyPair {secret, public};
-        let my_index = index.clone();
-        Ok(PyThresholdKey { keypair, my_index, t, n})
+        let parties_index = option_list2parties_index(_py, n, parties_index)?;
+        let my_index = Some(my_index);
+        Ok(PyThresholdKey { keypair, my_index, parties_index, t, n})
     }
 
     fn get_commitment(&self, _py: Python) -> Py<PyTuple> {
@@ -60,20 +65,19 @@ impl PyThresholdKey {
         ])
     }
 
-    fn get_variable_secret_sharing(&self, _py: Python) -> Py<PyTuple> {
+    fn get_variable_secret_sharing(&self, _py: Python) -> PyResult<PyObject> {
         // index users [0, 1, .., n] => [1, 2, ...,n+1]
-        let parties = (0..self.n).map(|i| i + 1).collect::<Vec<usize>>();
         let (vss_scheme, secret_shares) = VerifiableSS::share_at_indices(
-                self.t, self.n, &self.keypair.secret, &parties);
+                self.t, self.n, &self.keypair.secret, &self.parties_index);
 
         let vss_point: Vec<Py<PyBytes>> = vss_scheme.commitments.iter()
             .map(|com| PyBytes::new(_py, &com.get_element().serialize())).collect();
         let secret_scalar: Vec<Py<PyBytes>> = secret_shares.iter()
             .map(|int| PyBytes::new(_py, &bigint2bytes(&int.to_big_int()).unwrap())).collect();
-        PyTuple::new(_py, &[
+        Ok(PyTuple::new(_py, &[
             PyTuple::new(_py, &vss_point),
             PyTuple::new(_py, &secret_scalar),
-        ])
+        ]).to_object(_py))
     }
 
     fn keygen_t_n_parties(&mut self, _py: Python, signers: &PyList, vss_points: &PyList, secret_scalars: &PyList)
@@ -131,16 +135,22 @@ impl PyThresholdKey {
         };
         let secret_shares_vec = secret_scalars?;
         // your index
-        let my_index = {
-            let mut my_index: Option<usize> = None;
-            for (index, signer) in signers.iter().enumerate() {
-                if signer == &self.keypair.public {
-                    my_index = Some(index);
-                    break;
+        let my_index = match self.my_index {
+            Some(i) => i,
+            None => {
+                let mut my_index: Option<usize> = None;
+                for (index, signer) in signers.iter().enumerate() {
+                    if signer == &self.keypair.public {
+                        my_index = Some(index);
+                        break;
+                    }
                 }
+                if my_index.is_none() {
+                    return Err(ValueError::py_err("cannot find your position"));
+                }
+                my_index.unwrap()
             }
-            my_index
-        }.ok_or(ValueError::py_err("cannot find your position"))?;
+        };
 
         {  // commitments check?
             let h = HashCommitment::create_commitment_with_user_defined_randomness(
@@ -162,7 +172,7 @@ impl PyThresholdKey {
 
         // phase2: verify vss construct keypair
         for i in 0..self.n {
-            if vss_scheme_vec[i].validate_share(&party_share[i], my_index + 1).is_err() {
+            if vss_scheme_vec[i].validate_share(&party_share[i], self.parties_index[my_index]).is_err() {
                 return Err(ValueError::py_err("failed vss validation check"));
             }
             if vss_scheme_vec[i].commitments[0] != signers[i] {
@@ -175,6 +185,26 @@ impl PyThresholdKey {
         self.my_index = Some(my_index);
         Ok(PyBytes::new(_py, &x_i).to_object(_py))
     }
+}
+
+fn option_list2parties_index(_py: Python, n: usize, parties_index: Option<&PyList>)
+    -> PyResult<Vec<usize>> {
+    let vec = match parties_index {
+        Some(list) => {
+            let mut tmp = Vec::with_capacity(list.len());
+            for int in list.iter() {
+                let int: &PyLong = int.try_into()?;
+                let int: usize = int.extract()?;
+                tmp.push(int + 1);
+            }
+            if n != tmp.len() {
+                return Err(ValueError::py_err("not correct parties_index length"));
+            }
+            tmp
+        },
+        None => (0..n).map(|i| i + 1).collect::<Vec<usize>>()
+    };
+    Ok(vec)
 }
 
 pub fn sum_public_points(signers: &Vec<GE>) -> PyResult<GE> {
