@@ -32,9 +32,25 @@ impl PyThresholdKey {
     #[classmethod]
     fn generate(_cls: &PyType, _py: Python, t: usize, n: usize, parties_index: Option<&PyList>)
         -> PyResult<PyThresholdKey> {
+        if t >= n {
+            return Err(ValueError::py_err("require \"t < n\""));
+        };
         let parties_index = option_list2parties_index(_py, n, parties_index)?;
         let my_index = None;  // unknown at this point
         let keypair = generate_keypair();
+        {
+            // commitment check
+            let blind_factor = BigInt::sample(256);
+            let commitment = HashCommitment::create_commitment_with_user_defined_randomness(
+                &keypair.public.bytes_compressed_to_big_int(),
+                &blind_factor,
+            );  // com = bc1 of KeyGenBroadcastMessage1
+            let h = HashCommitment::create_commitment_with_user_defined_randomness(
+                    &keypair.public.bytes_compressed_to_big_int(), &blind_factor);
+            if h != commitment {
+                return Err(ValueError::py_err("test commitment check failed"));
+            }
+        }
         //obj.init(PyThresholdKey { keypair, my_index, parties_index, t, n});
         Ok(PyThresholdKey { keypair, my_index, parties_index, t, n})
     }
@@ -42,6 +58,9 @@ impl PyThresholdKey {
     #[classmethod]
     fn from_secret_key(_cls: &PyType, _py: Python, t: usize, n: usize, secret: &PyBytes, my_index: usize, parties_index: Option<&PyList>)
         -> PyResult<PyThresholdKey> {
+        if t >= n {
+            return Err(ValueError::py_err("require \"t < n\""));
+        };
         let ec_point: GE = ECPoint::generator();
         let secret: FE = ECScalar::from(&BigInt::from(secret.as_bytes()));
         let public: GE = ec_point.scalar_mul(&secret.get_element());
@@ -89,11 +108,6 @@ impl PyThresholdKey {
         } else if self.n != secret_scalars.len() {
             return Err(ValueError::py_err("not correct secret_scalars length"));
         }
-        let blind_factor = BigInt::sample(256);
-        let commitment = HashCommitment::create_commitment_with_user_defined_randomness(
-            &self.keypair.public.bytes_compressed_to_big_int(),
-            &blind_factor,
-        );  // com = bc1 of KeyGenBroadcastMessage1
         // convert python type => Rust type
         let signers = pylist2points(signers)?;  // = y_vec
         let vss_points: Result<Vec<VerifiableSS>, PyErr> = {
@@ -151,14 +165,6 @@ impl PyThresholdKey {
                 my_index.unwrap()
             }
         };
-
-        {  // commitments check?
-            let h = HashCommitment::create_commitment_with_user_defined_randomness(
-                &signers[my_index].bytes_compressed_to_big_int(), &blind_factor);
-            if h != commitment {
-                return Err(ValueError::py_err("test commitment check failed"));
-            }
-        }
 
         // calculate party share
         let mut party_share = Vec::with_capacity(self.n);
