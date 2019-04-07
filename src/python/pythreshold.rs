@@ -111,7 +111,7 @@ impl PyThresholdKey {
         // convert python type => Rust type
         let signers = pylist2points(signers)?;  // = y_vec
         let vss_points: Result<Vec<VerifiableSS>, PyErr> = {
-            let mut tmp = vec![];
+            let mut tmp = Vec::with_capacity(vss_points.len());
             for point in vss_points.into_iter() {
                 let point: &PyList = match point.try_into() {
                     Ok(p) => p,
@@ -132,7 +132,7 @@ impl PyThresholdKey {
         };
         let vss_scheme_vec = vss_points?;
         let secret_scalars: Result<Vec<Vec<FE>>, PyErr> = {
-            let mut tmp = vec![];
+            let mut tmp = Vec::with_capacity(secret_scalars.len());
             for scalar in secret_scalars.into_iter() {
                 let scalar: &PyList = match scalar.try_into() {
                     Ok(s) => s,

@@ -63,7 +63,7 @@ pub fn decode_public_bytes(bytes: &[u8]) -> Result<(bool, u8), ErrorKey> {
 }
 
 pub fn pylist2points(list: &PyList) -> PyResult<Vec<GE>> {
-    let mut tmp = Vec::new();
+    let mut tmp = Vec::with_capacity(list.len());
     for b in list.into_iter() {
         let b: &PyBytes = b.try_into()?;
         let p = bytes2point(b.as_bytes())?;
