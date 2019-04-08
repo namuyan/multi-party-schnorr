@@ -11,6 +11,8 @@ use pyo3::prelude::*;
 use pyo3::exceptions::ValueError;
 use pyo3::types::{PyBytes,PyList,PyTuple,PyType};
 use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
+use threadpool::ThreadPool;
+use std::sync::mpsc::channel;
 
 
 #[pyclass]
@@ -108,6 +110,7 @@ impl PyThresholdKey {
         } else if self.n != secret_scalars.len() {
             return Err(ValueError::py_err("not correct secret_scalars length"));
         }
+
         // convert python type => Rust type
         let signers = pylist2points(signers)?;  // = y_vec
         let vss_scheme_vec = {
@@ -141,6 +144,7 @@ impl PyThresholdKey {
             };
             tmp
         };
+
         // your index
         let my_index = match self.my_index {
             Some(i) => i,
@@ -169,17 +173,37 @@ impl PyThresholdKey {
             party_share.push(party);
         }
 
-        // phase2: verify vss construct keypair
-        for i in 0..self.n {
-            if vss_scheme_vec[i].validate_share(&party_share[i], self.parties_index[my_index]).is_err() {
-                return Err(ValueError::py_err("failed vss validation check"));
-            }
-            if vss_scheme_vec[i].commitments[0] != signers[i] {
-                return Err(ValueError::py_err("failed vss commitment signer check"));
-            }
-        }
+        // calculate party_share sum
         let x_i = party_share.iter().fold(FE::zero(), |acc, x| acc + x);
         let x_i = bigint2bytes(&x_i.to_big_int()).expect("too large x_i");
+
+        // verify vss construct keypair
+        {
+            let pool = ThreadPool::new(num_cpus::get());
+            let (tx, rx) = channel();
+            for i in 0..self.n {
+                let vss_scheme = vss_scheme_vec[i].to_owned();
+                let share_point = party_share[i].to_owned();
+                let position = self.parties_index[my_index].to_owned();
+                let public_key = signers[i].to_owned();
+                let tx = tx.clone();
+                pool.execute(move || {
+                    if vss_scheme.validate_share(&share_point, position).is_err() {
+                        tx.send(Err(format!("failed vss validation check: idx={}", i)));
+                    } else if vss_scheme.commitments[0] != public_key {
+                        tx.send(Err(format!("failed vss commitment signer check: idx={}", i)));
+                    } else {
+                        tx.send(Ok(()));
+                    }
+                });
+            };
+            // wait for all jobs finish
+            for result in rx.iter().take(self.n) {
+                if result.is_err() {
+                    return Err(ValueError::py_err(result.unwrap_err()));
+                }
+            }
+        }
         // success generate sharedKey
         self.my_index = Some(my_index);
         Ok(PyBytes::new(_py, &x_i).to_object(_py))

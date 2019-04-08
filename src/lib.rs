@@ -21,6 +21,8 @@ extern crate serde;
 extern crate centipede;
 extern crate curv;
 extern crate pyo3;
+extern crate num_cpus;
+extern crate threadpool;
 
 pub mod protocols;
 pub mod python;
