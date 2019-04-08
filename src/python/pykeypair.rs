@@ -2,7 +2,7 @@ use crate::python::utils::{bytes2point,bigint2bytes};
 use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use curv::{BigInt, FE, GE};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes,PyTuple,PyType};
+use pyo3::types::{PyBytes,PyType};
 
 #[pyclass]
 #[derive(Clone)]

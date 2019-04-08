@@ -5,7 +5,7 @@ use curv::arithmetic::traits::Converter;
 use curv::ErrorKey;
 use pyo3::prelude::*;
 use pyo3::exceptions::ValueError;
-use pyo3::types::{PyList, PyBytes, PyTuple};
+use pyo3::types::PyList;
 
 
 /// Bitcoin public key format converter
@@ -63,43 +63,57 @@ pub fn decode_public_bytes(bytes: &[u8]) -> Result<(bool, u8), ErrorKey> {
 }
 
 pub fn pylist2points(list: &PyList) -> PyResult<Vec<GE>> {
-    let mut tmp = Vec::with_capacity(list.len());
-    for b in list.into_iter() {
-        let b: &PyBytes = b.try_into()?;
-        let p = bytes2point(b.as_bytes())?;
+    let points: Vec<Vec<u8>> = list.extract()?;
+    let mut tmp = Vec::with_capacity(points.len());
+    for p in points {
+        let p = bytes2point(p.as_slice())?;
         tmp.push(p);
-    };
+    }
     Ok(tmp)
 }
 
 pub fn pylist2bigints(list: &PyList) -> PyResult<Vec<BigInt>> {
-    let mut tmp = Vec::with_capacity(list.len());
-    for b in list.into_iter() {
-        let b: &PyBytes = b.try_into()?;
-        let int = BigInt::from(b.as_bytes());
+    let bigints: Vec<Vec<u8>> = list.extract()?;
+    let mut tmp = Vec::with_capacity(bigints.len());
+    for int in bigints {
+        let int = BigInt::from(int.as_slice());
         tmp.push(int);
-    };
+    }
     Ok(tmp)
 }
 
-pub fn pylist2vss(py: Python, t: usize, n: usize, vss_points: &PyList) -> PyResult<Vec<VerifiableSS>> {
-    let mut tmp = Vec::with_capacity(vss_points.len());
-    for point in vss_points.into_iter() {
-        let point: &PyList = match point.try_into() {
-            Ok(p) => p,
-            Err(_) => {
-                let point: &PyTuple = point.try_into()?;
-                PyList::new(py, point.as_slice())
-            }
-        };
-        let point = pylist2points(point)?;
-        tmp.push(VerifiableSS {
+pub fn pylist2vss(t: usize, n: usize, vss_points: &PyList) -> PyResult<Vec<VerifiableSS>> {
+    let vss_points: Vec<Vec<Vec<u8>>> = vss_points.extract()?;
+    let mut result = Vec::with_capacity(vss_points.len());
+    for vss in vss_points {
+        let mut inner = Vec::with_capacity(vss.len());
+        for point in vss {
+            let point = bytes2point(point.as_slice())?;
+            inner.push(point);
+        }
+        result.push(VerifiableSS {
             parameters: ShamirSecretSharing {
                 threshold: t,
                 share_count: n
             },
-            commitments: point
+            commitments: inner
         });
     }
-    Ok(tmp)
+    Ok(result)
+}
+
+pub fn option_list2parties_index(_py: Python, n: usize, parties_index: Option<&PyList>)
+    -> PyResult<Vec<usize>> {
+    let vec = match parties_index {
+        Some(list) => {
+            if n != list.len() {
+                return Err(ValueError::py_err("not correct parties_index length"));
+            }
+            let tmp: Vec<usize> = list.extract()?;
+            tmp
+        },
+        None => (0..n).collect()
+    };
+    let vec: Vec<usize> = vec.into_iter().map(|i| i + 1).collect();
+    Ok(vec)
 }

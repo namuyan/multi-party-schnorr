@@ -7,7 +7,7 @@ use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use curv::{BigInt, FE, GE};
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use pyo3::types::{PyBytes, PyList, PyTuple, PyBool, PyLong};
+use pyo3::types::{PyBytes, PyList, PyTuple, PyBool};
 use pyo3::exceptions::ValueError;
 
 
@@ -63,13 +63,12 @@ fn summarize_local_signature(
         .map(|int| ECScalar::from(int)).collect();
     let mut tmp = Vec::with_capacity(parties_index.len());
     for int in parties_index.iter() {
-        let int: &PyLong = int.try_into()?;
         let int: usize = int.extract()?;
         tmp.push(int);
     }
     let parties_index = tmp;
-    let vss_points = pylist2vss(_py, t, n, vss_points)?;
-    let eph_vss_points = pylist2vss(_py, t, m, eph_vss_points)?;
+    let vss_points = pylist2vss(t, n, vss_points)?;
+    let eph_vss_points = pylist2vss(t, m, eph_vss_points)?;
     match sum_local_signature(t, &e, &gammas, &parties_index, &vss_points, &eph_vss_points){
         Ok(sigma) => {
             let sigma = bigint2bytes(&sigma.to_big_int()).unwrap();

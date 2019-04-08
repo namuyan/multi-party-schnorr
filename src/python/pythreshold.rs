@@ -9,7 +9,7 @@ use curv::arithmetic::traits::Samplable;
 use curv::{BigInt, FE, GE};
 use pyo3::prelude::*;
 use pyo3::exceptions::ValueError;
-use pyo3::types::{PyBytes,PyList,PyTuple,PyLong,PyType};
+use pyo3::types::{PyBytes,PyList,PyTuple,PyType};
 use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
 
 
@@ -110,44 +110,37 @@ impl PyThresholdKey {
         }
         // convert python type => Rust type
         let signers = pylist2points(signers)?;  // = y_vec
-        let vss_points: Result<Vec<VerifiableSS>, PyErr> = {
+        let vss_scheme_vec = {
+            let vss_points: Vec<Vec<Vec<u8>>> = vss_points.extract()?;
             let mut tmp = Vec::with_capacity(vss_points.len());
-            for point in vss_points.into_iter() {
-                let point: &PyList = match point.try_into() {
-                    Ok(p) => p,
-                    Err(_) => {
-                        let point: &PyTuple = point.try_into()?;
-                        PyList::new(_py, point.as_slice())
-                    }
-                };
-                let point = pylist2points(point)?;
+            for vss in vss_points {
+                let mut points = Vec::with_capacity(vss.len());
+                for p in vss {
+                    let p = bytes2point(p.as_slice())?;
+                    points.push(p);
+                }
                 tmp.push(VerifiableSS {
                     parameters: ShamirSecretSharing {
                         threshold: self.t, share_count: self.n
                     },
-                    commitments: point
+                    commitments: points
                 });
-            }
-            Ok(tmp)
+            };
+            tmp
         };
-        let vss_scheme_vec = vss_points?;
-        let secret_scalars: Result<Vec<Vec<FE>>, PyErr> = {
+        let secret_shares_vec = {
+            let secret_scalars: Vec<Vec<Vec<u8>>> = secret_scalars.extract()?;
             let mut tmp = Vec::with_capacity(secret_scalars.len());
-            for scalar in secret_scalars.into_iter() {
-                let scalar: &PyList = match scalar.try_into() {
-                    Ok(s) => s,
-                    Err(_) => {
-                        let scalar: &PyTuple = scalar.try_into()?;
-                        PyList::new(_py, scalar.as_slice())
-                    }
+            for lists in secret_scalars {
+                let mut inner = Vec::with_capacity(lists.len());
+                for scalar in lists {
+                    let s: FE = ECScalar::from(&BigInt::from(scalar.as_slice()));
+                    inner.push(s);
                 };
-                let scalar = pylist2bigints(scalar)?;
-                let scalar: Vec<FE> = scalar.iter().map(|s| ECScalar::from(s)).collect();
-                tmp.push(scalar);
-            }
-            Ok(tmp)
+                tmp.push(inner);
+            };
+            tmp
         };
-        let secret_shares_vec = secret_scalars?;
         // your index
         let my_index = match self.my_index {
             Some(i) => i,
@@ -191,26 +184,6 @@ impl PyThresholdKey {
         self.my_index = Some(my_index);
         Ok(PyBytes::new(_py, &x_i).to_object(_py))
     }
-}
-
-fn option_list2parties_index(_py: Python, n: usize, parties_index: Option<&PyList>)
-    -> PyResult<Vec<usize>> {
-    let vec = match parties_index {
-        Some(list) => {
-            let mut tmp = Vec::with_capacity(list.len());
-            for int in list.iter() {
-                let int: &PyLong = int.try_into()?;
-                let int: usize = int.extract()?;
-                tmp.push(int + 1);
-            }
-            if n != tmp.len() {
-                return Err(ValueError::py_err("not correct parties_index length"));
-            }
-            tmp
-        },
-        None => (0..n).map(|i| i + 1).collect::<Vec<usize>>()
-    };
-    Ok(vec)
 }
 
 pub fn sum_public_points(signers: &Vec<GE>) -> PyResult<GE> {

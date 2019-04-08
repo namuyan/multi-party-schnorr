@@ -1,4 +1,4 @@
-use crate::protocols::aggsig::{verify, verify_partial, EphemeralKey, KeyAgg, KeyPair};
+use crate::protocols::aggsig::{EphemeralKey, KeyAgg};
 use crate::python::utils::{bytes2point,bigint2bytes};
 use crate::python::pykeypair::*;
 use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
@@ -96,6 +96,8 @@ impl PyAggregate {
     fn generate(_cls: &PyType, signers: &PyList, ephemeral: &PyList, keypair: &PyKeyPair, eph: &PyEphemeralKey)
         -> PyResult<PyAggregate> {
         // check signature number
+        let signers: Vec<Vec<u8>> = signers.extract()?;
+        let ephemeral: Vec<Vec<u8>> = ephemeral.extract()?;
         let keypair = keypair.clone();
         let eph = eph.clone();
         if signers.len() != ephemeral.len() {
@@ -106,11 +108,10 @@ impl PyAggregate {
         }
         // compute apk
         let is_musig = 1 < signers.len();
-        let mut pks = vec![];
         let mut party_index: Option<usize> = None;
+        let mut pks = Vec::with_capacity(signers.len());
         for (index, key) in signers.into_iter().enumerate() {
-            let key: &PyBytes = key.try_into()?;
-            let public = bytes2point(key.as_bytes())?;
+            let public = bytes2point(key.as_slice())?;
             pks.push(public);
             if public == keypair.public {
                 party_index = Some(index)
@@ -120,15 +121,16 @@ impl PyAggregate {
             ValueError::py_err("not found your public key in signers"))?;
         let agg = KeyAgg::key_aggregation_n(&pks, party_index);
         // compute R' = R1+R2:
-        let mut points = vec![];
+        let mut points = Vec::with_capacity(ephemeral.len());
         for eph in ephemeral.into_iter() {
-            let eph: &PyBytes = eph.try_into()?;
-            let eph = bytes2point(eph.as_bytes())?;
+            let eph = bytes2point(eph.as_slice())?;
             points.push(eph);
         };
-        let mut r_hat = points.remove(0);
-        for p in points {
-            r_hat = p + r_hat;
+        // sum of ephemeral points
+        let r_hat = {
+            let mut iter = points.into_iter();
+            let head = iter.next().unwrap();
+            iter.fold(head, |a, b| a + b)
         };
         Ok(PyAggregate {keypair, eph, agg, r_tag: r_hat, is_musig})
     }
