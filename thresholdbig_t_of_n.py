@@ -1,5 +1,5 @@
 from multi_party_schnorr import PyThresholdKey, summarize_public_points, \
-    get_local_signature, summarize_local_signature, verify_threshold_sign
+    get_local_signature, summarize_local_signature, verify_threshold_sign, verify_auto
 from time import time
 from random import shuffle
 
@@ -100,3 +100,21 @@ sign_start = time()
 r = verify_threshold_sign(sigma, Y, V, msg)
 print("verify?", r, round((time()-sign_start)*1000), "mSec")
 print("finish", round(time() - start, 3), "Sec")
+print("verify auto?", verify_auto(sigma, V, Y, msg))
+
+"""
+before
+0.. 1.673 Sec
+1.. 83.759 Sec
+convert types 67mSec
+get index 67mSec
+calculate party share 67mSec
+verify vss construct keypair 83516mSec
+convert types 67mSec
+get index 67mSec
+calculate party share 67mSec
+verify vss construct keypair 84153mSec
+convert types 70mSec
+get index 71mSec
+calculate party share 71mSec
+"""

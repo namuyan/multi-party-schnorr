@@ -31,9 +31,15 @@ Get Started
 Install
 ----
 Please use python3.5 or more  
-Install by pip `pip3 install --user git+http://github.com/namuyan/multi-party-schnorr.git`  
+Install by pip `pip3 install --user multi-party-schnorr`  
 How to use? please look at examples `*.py`  
 Cannot use on windows? please read a [issue/39](https://github.com/KZen-networks/curv/issues/39)  
+
+compressed key prefix
+----
+* `0x02, 0x03, 0x04` => for 1 of 1 single signature
+* `0x05, 0x06, 0x07` => for n of n aggregate signature
+* `0x08, 0x09, 0x0a` => for t of n threshold signature
 
 Development Process
 -------------------

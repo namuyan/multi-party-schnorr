@@ -8,17 +8,27 @@ use pyo3::exceptions::ValueError;
 use pyo3::types::PyList;
 
 
+/// Points type
+#[derive(PartialEq, Debug)]
+pub enum KeyType {
+    SingleSig,
+    AggregateSig,
+    ThresholdSig
+}
+
 /// Bitcoin public key format converter
 /// compressed key   : 2 or 3 prefix + X
 /// uncompressed key : 4 prefix      + X + Y
 pub fn bytes2point(bytes: &[u8]) -> PyResult<GE> {
     let len = bytes.len();
     let result = match decode_public_bytes(bytes) {
-        Ok((is_musig, prefix)) => {
+        Ok((key_type, prefix)) => {
             if len == 33 && (prefix == 2 || prefix == 3) {
                 let mut bytes = bytes.to_vec();
-                if is_musig {
-                    bytes[0] -= 3;
+                match key_type {
+                    KeyType::SingleSig => (),
+                    KeyType::AggregateSig => bytes[0] -= 3,
+                    KeyType::ThresholdSig => bytes[0] -= 6
                 }
                 let public = PK::from_slice(&bytes)
                     .map_err(|_| ValueError::py_err("decode failed key"))?;
@@ -47,13 +57,15 @@ pub fn bigint2bytes(int: &BigInt) -> Result<[u8;32], String> {
 
 /// return (is_musig, normal_prefix,)
 /// warning: I will add more params
-pub fn decode_public_bytes(bytes: &[u8]) -> Result<(bool, u8), ErrorKey> {
+pub fn decode_public_bytes(bytes: &[u8]) -> Result<(KeyType, u8), ErrorKey> {
     match bytes.get(0) {
         Some(prefix) => {
             if *prefix == 2 || *prefix == 3 || *prefix == 4 {
-                Ok((false, *prefix))
+                Ok((KeyType::SingleSig, *prefix))
             } else if *prefix == 5 || *prefix == 6 || *prefix == 7 {
-                Ok((true, *prefix - 3))
+                Ok((KeyType::AggregateSig, *prefix - 3))
+            } else if *prefix == 8 || *prefix == 9 || *prefix == 10 {
+                Ok((KeyType::ThresholdSig, *prefix - 6))
             } else {
                 Err(ErrorKey::InvalidPublicKey)
             }

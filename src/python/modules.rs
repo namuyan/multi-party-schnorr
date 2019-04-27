@@ -14,12 +14,18 @@ use pyo3::exceptions::ValueError;
 #[pyfunction]
 fn verify_aggregate_sign(_py: Python, sig: &PyBytes, R: &PyBytes, apk: &PyBytes, message: &PyBytes, is_musig: Option<bool>)
     -> PyResult<PyObject> {
+    // signature -> [sig 32bytes]-[R 33bytes]
+    // public    -> [apk 33bytes]
     let sig = BigInt::from(sig.as_bytes());
     let R = BigInt::from(R.as_bytes());
     let is_musig = match is_musig {
         Some(is_musig) => is_musig,
         None => match decode_public_bytes(apk.as_bytes()) {
-            Ok((is_musig, _prefix)) => is_musig,
+            Ok((key_type, _)) => match key_type {
+                KeyType::SingleSig => false,
+                KeyType::AggregateSig => true,
+                _ => return Err(ValueError::py_err("not found pubkey prefix"))
+            },
             Err(_) => return Err(ValueError::py_err("cannot find prefix and is_musig"))
         }
     };
@@ -30,10 +36,36 @@ fn verify_aggregate_sign(_py: Python, sig: &PyBytes, R: &PyBytes, apk: &PyBytes,
 }
 
 #[pyfunction]
+fn verify_auto(_py: Python, sig_scalar: &PyBytes, sig_point: &PyBytes, apk: &PyBytes, message: &PyBytes)
+    -> PyResult<PyObject> {
+    let message = message.as_bytes();
+    let is_verify = match decode_public_bytes(apk.as_bytes()) {
+        Ok((key_type, _prefix)) => match key_type {
+            KeyType::SingleSig | KeyType::AggregateSig => {
+                let signature = BigInt::from(sig_scalar.as_bytes());
+                let r_x = BigInt::from(sig_point.as_bytes());
+                let apk = bytes2point(apk.as_bytes())?;
+                let is_musig = key_type == KeyType::AggregateSig;
+                verify(&signature, &r_x, &apk, message, is_musig).is_ok()
+            },
+            KeyType::ThresholdSig => {
+                let sigma = ECScalar::from(&BigInt::from(sig_scalar.as_bytes()));
+                let Y = bytes2point(apk.as_bytes())?;
+                let V = bytes2point(sig_point.as_bytes())?;
+                verify_threshold_signature(sigma, &Y, &V, message)
+            }
+        },
+        Err(_) => return Err(ValueError::py_err("cannot find prefix and is_musig"))
+    };
+    Ok(PyObject::from(PyBool::new(_py, is_verify)))
+}
+
+#[pyfunction]
 fn summarize_public_points(_py: Python, signers: &PyList) -> PyResult<PyObject> {
     let signers = pylist2points(&signers)?;
     let sum = sum_public_points(&signers)?;
-    let sum = sum.get_element().serialize();
+    let mut sum = sum.get_element().serialize();
+    sum[0] += 6;  // 0x02 0x03 0x04 => 0x08 0x09 0x0a
     Ok(PyObject::from(PyBytes::new(_py, &sum)))
 }
 
@@ -80,6 +112,8 @@ fn summarize_local_signature(
 
 #[pyfunction]
 fn verify_threshold_sign(sigma: &PyBytes, Y: &PyBytes, V: &PyBytes, message: &PyBytes) -> PyResult<bool> {
+    // signature -> [sigma 32bytes]-[V 33bytes]
+    // public    -> [Y 33bytes]
     let sigma = ECScalar::from(&BigInt::from(sigma.as_bytes()));
     let Y = bytes2point(Y.as_bytes())?;
     let V = bytes2point(V.as_bytes())?;
@@ -93,6 +127,7 @@ pub fn multi_party_schnorr(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyEphemeralKey>()?;
     m.add_class::<PyAggregate>()?;
     m.add_wrapped(wrap_pyfunction!(verify_aggregate_sign))?;
+    m.add_wrapped(wrap_pyfunction!(verify_auto))?;
     m.add_class::<PyThresholdKey>()?;
     m.add_wrapped(wrap_pyfunction!(summarize_public_points))?;
     m.add_wrapped(wrap_pyfunction!(get_local_signature))?;
