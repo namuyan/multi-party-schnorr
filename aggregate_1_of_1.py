@@ -1,16 +1,20 @@
-import multi_party_schnorr
+from multi_party_schnorr import PyKeyPair, verify_aggregate_sign, verify_auto
+from time import time
 
-
+s = time()
 msg = b"nice meet"
-eph = multi_party_schnorr.PyEphemeralKey()  # 18mS
-pk = eph.keypair.get_public_key()
+keypair = PyKeyPair()  # 18mS
+print(round((time()-s)*1000), "mSec")
+pk = keypair.get_public_key()
+print(round((time()-s)*1000), "mSec")
 print("key:", pk.hex())
-R, sig = eph.get_single_sign(msg)  # 19ms
+R, sig = keypair.get_single_sign(msg)  # 19ms
+print(round((time()-s)*1000), "mSec")
 print("R:", R.hex())
 print("sig:", sig.hex())
-result = multi_party_schnorr.verify_aggregate_sign(sig, R, pk, msg)  # 35ms
+result = verify_aggregate_sign(sig, R, pk, msg)  # 35ms
+print(round((time()-s)*1000), "mSec")
 print("res:", result)
-print("verify auto?", multi_party_schnorr.verify_auto(sig, R, pk, msg))
-# from timeit import timeit
-# timeit("single()", globals=globals(), number=10)
-# check = lambda x: timeit(x, globals=globals(), number=10)*1000//10
+print("verify auto?", verify_auto(sig, R, pk, msg))
+print(round((time()-s)*1000), "mSec")
+
