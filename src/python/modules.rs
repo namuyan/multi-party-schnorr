@@ -36,22 +36,22 @@ fn verify_aggregate_sign(_py: Python, sig: &PyBytes, R: &PyBytes, apk: &PyBytes,
 }
 
 #[pyfunction]
-fn verify_auto(_py: Python, sig_scalar: &PyBytes, sig_point: &PyBytes, apk: &PyBytes, message: &PyBytes)
+fn verify_auto(_py: Python, s: &PyBytes, r: &PyBytes, apk: &PyBytes, message: &PyBytes)
     -> PyResult<PyObject> {
     let message = message.as_bytes();
     let is_verify = match decode_public_bytes(apk.as_bytes()) {
         Ok((key_type, _prefix)) => match key_type {
             KeyType::SingleSig | KeyType::AggregateSig => {
-                let signature = BigInt::from(sig_scalar.as_bytes());
-                let r_x = BigInt::from(sig_point.as_bytes());
+                let signature = BigInt::from(s.as_bytes());
+                let r_x = BigInt::from(r.as_bytes());
                 let apk = bytes2point(apk.as_bytes())?;
                 let is_musig = key_type == KeyType::AggregateSig;
                 verify(&signature, &r_x, &apk, message, is_musig).is_ok()
             },
             KeyType::ThresholdSig => {
-                let sigma = ECScalar::from(&BigInt::from(sig_scalar.as_bytes()));
+                let sigma = ECScalar::from(&BigInt::from(s.as_bytes()));
                 let Y = bytes2point(apk.as_bytes())?;
-                let V = bytes2point(sig_point.as_bytes())?;
+                let V = bytes2point(r.as_bytes())?;
                 verify_threshold_signature(sigma, &Y, &V, message)
             }
         },
