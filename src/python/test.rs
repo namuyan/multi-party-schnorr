@@ -1,7 +1,7 @@
 
 #[cfg(test)]
 mod test {
-    use crate::python::utils::*;
+    use crate::python::pyo3utils::*;
     use curv::elliptic::curves::traits::{ECPoint, ECScalar};
     use curv::arithmetic::traits::Converter;
     use curv::{BigInt, FE, GE};

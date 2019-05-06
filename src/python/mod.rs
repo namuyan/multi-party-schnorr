@@ -3,6 +3,7 @@
 pub mod pykeypair;
 pub mod pyagg;
 pub mod pythreshold;
+pub mod verifyutils;
 pub mod modules;
-pub mod utils;
+pub mod pyo3utils;
 mod test;

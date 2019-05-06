@@ -20,8 +20,15 @@ pub enum KeyType {
 /// compressed key   : 2 or 3 prefix + X
 /// uncompressed key : 4 prefix      + X + Y
 pub fn bytes2point(bytes: &[u8]) -> PyResult<GE> {
+    let result = bytes2point_inner(bytes);
+    result.map_err(|err| ValueError::py_err(err))
+}
+
+#[inline]
+pub fn bytes2point_inner(bytes: &[u8]) -> Result<GE, String> {
     let len = bytes.len();
-    let result = match decode_public_bytes(bytes) {
+    let hex_bytes = hex::encode(bytes);
+    match decode_public_bytes(bytes) {
         Ok((key_type, prefix)) => {
             if len == 33 && (prefix == 2 || prefix == 3) {
                 let mut bytes = bytes.to_vec();
@@ -30,18 +37,19 @@ pub fn bytes2point(bytes: &[u8]) -> PyResult<GE> {
                     KeyType::AggregateSig => bytes[0] -= 3,
                     KeyType::ThresholdSig => bytes[0] -= 6
                 }
-                let public = PK::from_slice(&bytes)
-                    .map_err(|_| ValueError::py_err("decode failed key"))?;
-                GE::from_bytes(&public.serialize_uncompressed()[1..])
+                let public = PK::from_slice(&bytes).map_err(
+                    |_| format!("0 invalid pk point: {}", hex_bytes))?;
+                GE::from_bytes(&public.serialize_uncompressed()[1..]).map_err(
+                    |_| format!("1 invalid pk point: {}", hex_bytes))
             }else if len == 65 && prefix == 4 {
-                GE::from_bytes(&bytes[1..])
+                GE::from_bytes(&bytes[1..]).map_err(
+                    |_| format!("2 invalid pk point: {}", hex_bytes))
             } else {
-                Err(ErrorKey::InvalidPublicKey)
+                Err(format!("unknown type meta info len={} prefix={}", len, prefix))
             }
         },
-        Err(err) => Err(err)
-    };
-    result.map_err(|_| ValueError::py_err("invalid key"))
+        Err(_) => Err(format!("invalid format pk: {}", hex_bytes))
+    }
 }
 
 /// Mpz bigint to 32bytes big endian

@@ -1,5 +1,5 @@
 use crate::python::pykeypair::*;
-use crate::python::utils::*;
+use crate::python::pyo3utils::*;
 use curv::cryptographic_primitives::commitments::hash_commitment::HashCommitment;
 use curv::cryptographic_primitives::commitments::traits::Commitment;
 use curv::elliptic::curves::traits::{ECPoint, ECScalar};

@@ -23,6 +23,7 @@ extern crate curv;
 extern crate pyo3;
 extern crate num_cpus;
 extern crate threadpool;
+extern crate hex;
 
 pub mod protocols;
 pub mod python;

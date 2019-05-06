@@ -1,7 +1,8 @@
 use crate::python::pykeypair::*;
-use crate::python::utils::*;
+use crate::python::pyo3utils::*;
 use crate::python::pyagg::{PyAggregate,PyEphemeralKey};
 use crate::python::pythreshold::*;
+use crate::python::verifyutils::verify_auto_signature;
 use crate::protocols::aggsig::verify;
 use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use curv::{BigInt, FE, GE};
@@ -9,6 +10,8 @@ use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3::types::{PyBytes, PyList, PyTuple, PyBool};
 use pyo3::exceptions::ValueError;
+use threadpool::ThreadPool;
+use std::sync::mpsc::channel;
 
 
 #[pyfunction]
@@ -38,26 +41,43 @@ fn verify_aggregate_sign(_py: Python, sig: &PyBytes, R: &PyBytes, apk: &PyBytes,
 #[pyfunction]
 fn verify_auto(_py: Python, s: &PyBytes, r: &PyBytes, apk: &PyBytes, message: &PyBytes)
     -> PyResult<PyObject> {
+    let s = s.as_bytes();
+    let r = r.as_bytes();
+    let apk = apk.as_bytes();
     let message = message.as_bytes();
-    let is_verify = match decode_public_bytes(apk.as_bytes()) {
-        Ok((key_type, _prefix)) => match key_type {
-            KeyType::SingleSig | KeyType::AggregateSig => {
-                let signature = BigInt::from(s.as_bytes());
-                let r_x = BigInt::from(r.as_bytes());
-                let apk = bytes2point(apk.as_bytes())?;
-                let is_musig = key_type == KeyType::AggregateSig;
-                verify(&signature, &r_x, &apk, message, is_musig).is_ok()
-            },
-            KeyType::ThresholdSig => {
-                let sigma = ECScalar::from(&BigInt::from(s.as_bytes()));
-                let Y = bytes2point(apk.as_bytes())?;
-                let V = bytes2point(r.as_bytes())?;
-                verify_threshold_signature(sigma, &Y, &V, message)
-            }
-        },
-        Err(_) => return Err(ValueError::py_err("cannot find prefix and is_musig"))
+    let is_verify = verify_auto_signature(s, r, apk, message).map_err(
+        |err| ValueError::py_err(err))?;
+    Ok(is_verify.to_object(_py))
+}
+
+#[pyfunction]
+fn verify_auto_multi(_py: Python, tasks: &PyList, n_workers: usize, f_raise: bool)
+    -> PyResult<PyObject> {
+    // verify by multi-threading
+    let tasks: Vec<(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>)> = tasks.extract()?;
+    let pool = ThreadPool::new(n_workers);
+    let (tx, rx) = channel();
+    let n_jobs = tasks.len();
+    for (s, r, apk, message) in tasks {
+        let tx = tx.clone();
+        pool.execute(move || {
+            tx.send(verify_auto_signature(&s, &r, &apk, &message)).unwrap()
+        });
     };
-    Ok(PyObject::from(PyBool::new(_py, is_verify)))
+    let mut response = Vec::with_capacity(n_jobs);
+    for result in rx.iter().take(n_jobs) {
+        let is_verify = match result {
+            Ok(is_verify) => is_verify,
+            Err(err) => {
+                if f_raise {
+                    return Err(ValueError::py_err(err))
+                }
+                false
+            }
+        };
+        response.push(is_verify);
+    };
+    Ok(response.to_object(_py))
 }
 
 #[pyfunction]
@@ -128,6 +148,7 @@ pub fn multi_party_schnorr(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyAggregate>()?;
     m.add_wrapped(wrap_pyfunction!(verify_aggregate_sign))?;
     m.add_wrapped(wrap_pyfunction!(verify_auto))?;
+    m.add_wrapped(wrap_pyfunction!(verify_auto_multi))?;
     m.add_class::<PyThresholdKey>()?;
     m.add_wrapped(wrap_pyfunction!(summarize_public_points))?;
     m.add_wrapped(wrap_pyfunction!(get_local_signature))?;

@@ -1,4 +1,4 @@
-use crate::python::utils::{bytes2point,bigint2bytes};
+use crate::python::pyo3utils::{bytes2point, bigint2bytes};
 use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use curv::{BigInt, FE, GE};
 use pyo3::prelude::*;
