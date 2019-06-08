@@ -1,4 +1,3 @@
-use crate::protocols::aggsig::{EphemeralKey, KeyAgg};
 use crate::python::pyo3utils::{bytes2point, bigint2bytes};
 use crate::python::pykeypair::*;
 use curv::cryptographic_primitives::commitments::hash_commitment::HashCommitment;
@@ -40,8 +39,7 @@ impl PyEphemeralKey {
     }
 
     fn check_commitments(&self) -> bool {
-        EphemeralKey::test_com(
-            &self.keypair.public, &self.blind_factor, &self.commitment)
+        ephemeral_test_com(&self.keypair.public, &self.blind_factor, &self.commitment)
     }
 }
 
@@ -51,7 +49,8 @@ pub struct PyAggregate {
     pub keypair: PyKeyPair,
     #[pyo3(get)]
     pub eph: PyEphemeralKey,
-    pub agg: KeyAgg,
+    pub apk: GE,
+    pub hash: BigInt,
     pub r_tag: GE,
     #[pyo3(get)]
     pub is_musig: bool,
@@ -86,7 +85,7 @@ impl PyAggregate {
         };
         let party_index = party_index.ok_or(
             ValueError::py_err("not found your public key in signers"))?;
-        let agg = KeyAgg::key_aggregation_n(&pks, party_index);
+        let (apk, hash) = key_aggregation_n(&pks, party_index);
         // compute R' = R1+R2:
         let mut points = Vec::with_capacity(ephemeral.len());
         for eph in ephemeral.into_iter() {
@@ -99,16 +98,16 @@ impl PyAggregate {
             let head = iter.next().unwrap();
             iter.fold(head, |a, b| a + b)
         };
-        Ok(PyAggregate {keypair, eph, agg, r_tag: r_hat, is_musig})
+        Ok(PyAggregate {keypair, eph, apk, hash, r_tag: r_hat, is_musig})
     }
 
     fn get_partial_sign(&self, _py: Python, message: &PyBytes) -> Py<PyBytes> {
         // compute c = H0(Rtag || apk || message)
         let message = message.as_bytes();
-        let c = EphemeralKey::hash_0(&self.r_tag, &self.agg.apk, message, self.is_musig);
+        let c = ephemeral_hash_0(&self.r_tag, &self.apk, message, self.is_musig);
         // compute partial signature s_i
         let c_fe: FE = ECScalar::from(&c);
-        let a_fe: FE = ECScalar::from(&self.agg.hash);
+        let a_fe: FE = ECScalar::from(&self.hash);
         let s_i = self.eph.keypair.secret.clone() + (c_fe * self.keypair.secret.clone() * a_fe);
         // encode to bytes
         let s_i = bigint2bytes(&s_i.to_big_int()).unwrap();
@@ -122,7 +121,7 @@ impl PyAggregate {
     }
 
     fn apk(&self, _py: Python) -> Py<PyBytes> {
-        let mut bytes = self.agg.apk.get_element().serialize();
+        let mut bytes = self.apk.get_element().serialize();
         if self.is_musig {
             bytes[0] += 3; // 0x02 0x03 0x04 => 0x05 0x06 0x07
         }
@@ -137,6 +136,74 @@ impl PyAggregate {
         let s1_plus_s2 = s1_fe.add(&s2_fe.get_element());
         let s = bigint2bytes(&s1_plus_s2.to_big_int()).unwrap();
         PyBytes::new(_py, &s)
+    }
+}
+
+
+/// generate aggregate Key
+fn key_aggregation_n(pks: &[GE], party_index: usize) -> (GE, BigInt) {
+    let bn_1 = BigInt::from(1);
+    let x_coor_vec: Vec<BigInt> = pks
+        .iter()
+        .map(|pk| pk.bytes_compressed_to_big_int())
+        .collect();
+
+    let hash_vec: Vec<BigInt> = x_coor_vec
+        .iter()
+        .map(|pk| {
+            let mut vec = Vec::new();
+            vec.push(&bn_1);
+            vec.push(pk);
+            for mpz in x_coor_vec.iter().take(pks.len()) {
+                vec.push(mpz);
+            }
+            HSha256::create_hash(&vec)
+        })
+        .collect();
+
+    let mut apk_vec: Vec<GE> = pks
+        .iter()
+        .zip(&hash_vec)
+        .map(|(pk, hash)| {
+            let hash_t: FE = ECScalar::from(&hash);
+            let pki: GE = pk.clone();
+            pki.scalar_mul(&hash_t.get_element())
+        })
+        .collect();
+
+    let pk1 = apk_vec.remove(0);
+    let sum = apk_vec
+        .iter()
+        .fold(pk1, |acc, pk| acc.add_point(&pk.get_element()));
+    // apk, hash
+    (sum, hash_vec[party_index].clone())
+    }
+
+
+// ephemeral commitments check
+fn ephemeral_test_com(r_to_test: &GE, blind_factor: &BigInt, comm: &BigInt) -> bool {
+    let computed_comm = &HashCommitment::create_commitment_with_user_defined_randomness(
+        &r_to_test.bytes_compressed_to_big_int(),
+        blind_factor,
+    );
+    computed_comm == comm
+}
+
+
+fn ephemeral_hash_0(r_hat: &GE, apk: &GE, message: &[u8], musig_bit: bool) -> BigInt {
+    if musig_bit {
+        HSha256::create_hash(&[
+            &BigInt::from(0),
+            &r_hat.x_coor().unwrap(),
+            &apk.bytes_compressed_to_big_int(),
+            &BigInt::from(message),
+        ])
+    } else {
+        HSha256::create_hash(&[
+            &r_hat.x_coor().unwrap(),
+            &apk.bytes_compressed_to_big_int(),
+            &BigInt::from(message),
+        ])
     }
 }
 
