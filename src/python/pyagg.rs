@@ -3,6 +3,8 @@ use crate::python::pyo3utils::{bytes2point, bigint2bytes};
 use crate::python::pykeypair::*;
 use curv::cryptographic_primitives::commitments::hash_commitment::HashCommitment;
 use curv::cryptographic_primitives::commitments::traits::Commitment;
+use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
+use curv::cryptographic_primitives::hashing::traits::Hash;
 use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use curv::{BigInt, FE, GE};
 use pyo3::prelude::*;
@@ -135,5 +137,37 @@ impl PyAggregate {
         let s1_plus_s2 = s1_fe.add(&s2_fe.get_element());
         let s = bigint2bytes(&s1_plus_s2.to_big_int()).unwrap();
         PyBytes::new(_py, &s)
+    }
+}
+
+
+pub fn verify_aggregate_signature(signature: &BigInt, r_x: &BigInt, apk: &GE, message: &[u8], musig_bit: bool)
+    -> Result<(), String> {
+    let base_point: GE = ECPoint::generator();
+
+    let c = if musig_bit {
+        HSha256::create_hash(&[
+            &BigInt::from(0),
+            &r_x,
+            &apk.bytes_compressed_to_big_int(),
+            &BigInt::from(message),
+        ])
+    } else {
+        HSha256::create_hash(&[
+            r_x,
+            &apk.bytes_compressed_to_big_int(),
+            &BigInt::from(message),
+        ])
+    };
+
+    let signature_fe: FE = ECScalar::from(signature);
+    let sG = base_point.scalar_mul(&signature_fe.get_element());
+    let c: FE = ECScalar::from(&c);
+    let cY = apk.scalar_mul(&c.get_element());
+    let sG = sG.sub_point(&cY.get_element());
+    if sG.x_coor().unwrap() == *r_x {
+        Ok(())
+    } else {
+        Err(String::from("sG_x do not match with r_x"))
     }
 }

@@ -1,9 +1,8 @@
 use crate::python::pykeypair::*;
 use crate::python::pyo3utils::*;
-use crate::python::pyagg::{PyAggregate,PyEphemeralKey};
+use crate::python::pyagg::{PyAggregate,PyEphemeralKey,verify_aggregate_signature};
 use crate::python::pythreshold::*;
 use crate::python::verifyutils::verify_auto_signature;
-use crate::protocols::aggsig::verify;
 use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use curv::{BigInt, FE, GE};
 use pyo3::prelude::*;
@@ -34,7 +33,7 @@ fn verify_aggregate_sign(_py: Python, sig: &PyBytes, R: &PyBytes, apk: &PyBytes,
     };
     let apk = bytes2point(apk.as_bytes())?;
     let message = message.as_bytes();
-    let is_verify = verify(&sig, &R, &apk, message, is_musig).is_ok();
+    let is_verify = verify_aggregate_signature(&sig, &R, &apk, message, is_musig).is_ok();
     Ok(is_verify.to_object(_py))
 }
 
