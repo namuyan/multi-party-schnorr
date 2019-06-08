@@ -8,7 +8,7 @@ use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use curv::{BigInt, FE, GE};
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use pyo3::types::{PyBytes, PyList, PyTuple, PyBool};
+use pyo3::types::{PyBytes, PyList, PyTuple};
 use pyo3::exceptions::ValueError;
 use threadpool::ThreadPool;
 use std::sync::mpsc::channel;
@@ -35,7 +35,7 @@ fn verify_aggregate_sign(_py: Python, sig: &PyBytes, R: &PyBytes, apk: &PyBytes,
     let apk = bytes2point(apk.as_bytes())?;
     let message = message.as_bytes();
     let is_verify = verify(&sig, &R, &apk, message, is_musig).is_ok();
-    Ok(PyObject::from(PyBool::new(_py, is_verify)))
+    Ok(is_verify.to_object(_py))
 }
 
 #[pyfunction]
@@ -86,7 +86,7 @@ fn summarize_public_points(_py: Python, signers: &PyList) -> PyResult<PyObject> 
     let sum = sum_public_points(&signers)?;
     let mut sum = sum.get_element().serialize();
     sum[0] += 6;  // 0x02 0x03 0x04 => 0x08 0x09 0x0a
-    Ok(PyObject::from(PyBytes::new(_py, &sum)))
+    Ok(PyBytes::new(_py, &sum).to_object(_py))
 }
 
 #[pyfunction]
