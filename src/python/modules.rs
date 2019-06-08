@@ -13,11 +13,15 @@ use threadpool::ThreadPool;
 use std::sync::mpsc::channel;
 
 
+/// verify_aggregate_sign(sig: bytes, R: bytes, apk: bytes, message: bytes, is_musig: Optional[bool]) -> bool
+/// --
+///
+/// verify aggregate signature (1of 1 and n of n)
+/// signature: [sig 32bytes]-[R 32bytes]
+/// publicKey: [apk 33bytes]
 #[pyfunction]
 fn verify_aggregate_sign(_py: Python, sig: &PyBytes, R: &PyBytes, apk: &PyBytes, message: &PyBytes, is_musig: Option<bool>)
     -> PyResult<PyObject> {
-    // signature -> [sig 32bytes]-[R 33bytes]
-    // public    -> [apk 33bytes]
     let sig = BigInt::from(sig.as_bytes());
     let R = BigInt::from(R.as_bytes());
     let is_musig = match is_musig {
@@ -37,6 +41,10 @@ fn verify_aggregate_sign(_py: Python, sig: &PyBytes, R: &PyBytes, apk: &PyBytes,
     Ok(is_verify.to_object(_py))
 }
 
+/// verify_auto(s: bytes, r: bytes, apk: bytes, message: bytes) -> bool
+/// --
+///
+/// verify signature with detection of type (1 of 1, n of n and n of m)
 #[pyfunction]
 fn verify_auto(_py: Python, s: &PyBytes, r: &PyBytes, apk: &PyBytes, message: &PyBytes)
     -> PyResult<PyObject> {
@@ -49,6 +57,10 @@ fn verify_auto(_py: Python, s: &PyBytes, r: &PyBytes, apk: &PyBytes, message: &P
     Ok(is_verify.to_object(_py))
 }
 
+/// verify_auto_multi(tasks: list, n_workers: int, f_raise: bool) -> List[bool]
+/// --
+///
+/// verify many signature with detection on multi-core(1 of 1, n of n and n of m)
 #[pyfunction]
 fn verify_auto_multi(_py: Python, tasks: &PyList, n_workers: usize, f_raise: bool)
     -> PyResult<PyObject> {
@@ -79,6 +91,11 @@ fn verify_auto_multi(_py: Python, tasks: &PyList, n_workers: usize, f_raise: boo
     Ok(response.to_object(_py))
 }
 
+/// summarize_public_points(signers: list) -> bytes
+/// --
+///
+/// return sum of public points with prefix +6
+/// used for threshold-signature
 #[pyfunction]
 fn summarize_public_points(_py: Python, signers: &PyList) -> PyResult<PyObject> {
     let signers = pylist2points(&signers)?;
@@ -88,6 +105,11 @@ fn summarize_public_points(_py: Python, signers: &PyList) -> PyResult<PyObject> 
     Ok(PyBytes::new(_py, &sum).to_object(_py))
 }
 
+/// get_local_signature(share: bytes, eph_share: bytes, Y: bytes, V: bytes, message: bytes) -> (bytes, bytes)
+/// --
+///
+/// return e and gamma
+/// used for threshold-signature
 #[pyfunction]
 fn get_local_signature(_py: Python, share: &PyBytes, eph_share: &PyBytes, Y: &PyBytes, V: &PyBytes, message: &PyBytes)
     -> PyResult<PyObject> {
@@ -105,10 +127,16 @@ fn get_local_signature(_py: Python, share: &PyBytes, eph_share: &PyBytes, Y: &Py
     ]).to_object(_py))
 }
 
+/// summarize_local_signature(t: int, n: int, m: int, e: int, gammas: list, parties_index: list, vss_points: list, eph_vss_points: list) -> bytes
+/// --
+///
+/// return sigma
+/// used for threshold-signature
 #[pyfunction]
 fn summarize_local_signature(
-    _py: Python, t: usize, n: usize, m: usize, e: &PyBytes, gammas: &PyList, parties_index: &PyList,
-    vss_points: &PyList, eph_vss_points: &PyList) -> PyResult<PyObject> {
+    _py: Python, t: usize, n: usize, m: usize, e: &PyBytes, gammas: &PyList,
+    parties_index: &PyList, vss_points: &PyList, eph_vss_points: &PyList)
+    -> PyResult<PyObject> {
     let e: FE = ECScalar::from(&BigInt::from(e.as_bytes()));
     let gammas: Vec<FE> = pylist2bigints(gammas)?.iter()
         .map(|int| ECScalar::from(int)).collect();
@@ -129,10 +157,15 @@ fn summarize_local_signature(
     }
 }
 
+/// verify_threshold_sign(sigma: bytes, Y: bytes, V: bytes, message: bytes) -> bool
+/// --
+///
+/// verify threshold signature
+/// signature: [sigma 32bytes]-[V 33bytes]
+/// publicLey: [Y 33bytes]
 #[pyfunction]
-fn verify_threshold_sign(sigma: &PyBytes, Y: &PyBytes, V: &PyBytes, message: &PyBytes) -> PyResult<bool> {
-    // signature -> [sigma 32bytes]-[V 33bytes]
-    // public    -> [Y 33bytes]
+fn verify_threshold_sign(sigma: &PyBytes, Y: &PyBytes, V: &PyBytes, message: &PyBytes)
+    -> PyResult<bool> {
     let sigma = ECScalar::from(&BigInt::from(sigma.as_bytes()));
     let Y = bytes2point(Y.as_bytes())?;
     let V = bytes2point(V.as_bytes())?;
