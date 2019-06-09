@@ -24,23 +24,44 @@ use curv::arithmetic::traits::*;
 
 use curv::elliptic::curves::traits::*;
 
+pub use curv::arithmetic::traits::Converter;
 use curv::cryptographic_primitives::commitments::hash_commitment::HashCommitment;
 use curv::cryptographic_primitives::commitments::traits::Commitment;
 use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
 use curv::cryptographic_primitives::hashing::traits::Hash;
-use curv::cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS;
-use curv::{BigInt, FE, GE};
+pub use curv::cryptographic_primitives::secret_sharing::feldman_vss::VerifiableSS;
+pub use curv::{BigInt, FE, GE};
 
 const SECURITY: usize = 256;
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Keys {
     pub u_i: FE,
     pub y_i: GE,
     pub party_index: usize,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct KeyGenBroadcastMessage1 {
     com: BigInt,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct KeyGenBroadcastMessage2 {
+    pub y_i: GE,
+    pub blind_factor: BigInt,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct KeyGenMessage3 {
+    pub vss_scheme: VerifiableSS,
+    pub secret_share: FE, // different per party, thus not a broadcast message
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SignMessage1 {
+    pub message: BigInt,
+    pub local_sig: LocalSig,
 }
 
 #[derive(Debug)]
@@ -48,10 +69,18 @@ pub struct Parameters {
     pub threshold: usize,   //t
     pub share_count: usize, //n
 }
-#[derive(Clone, Serialize, Deserialize)]
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SharedKeys {
     pub y: GE,
     pub x_i: FE,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Share {
+    pub id: String,
+    pub shared_key: SharedKeys,
+    pub vss_scheme_vec: Vec<VerifiableSS>,
 }
 
 impl Keys {
@@ -66,34 +95,36 @@ impl Keys {
         }
     }
 
-    pub fn phase1_broadcast(&self) -> (KeyGenBroadcastMessage1, BigInt) {
+    pub fn phase1_broadcast(&self) -> (KeyGenBroadcastMessage1, KeyGenBroadcastMessage2) {
         let blind_factor = BigInt::sample(SECURITY);
         let com = HashCommitment::create_commitment_with_user_defined_randomness(
             &self.y_i.bytes_compressed_to_big_int(),
             &blind_factor,
         );
         let bcm1 = KeyGenBroadcastMessage1 { com };
-        (bcm1, blind_factor)
+        let decom1 = KeyGenBroadcastMessage2 {
+            y_i: self.y_i,
+            blind_factor,
+        };
+        (bcm1, decom1)
     }
 
     pub fn phase1_verify_com_phase2_distribute(
         &self,
         params: &Parameters,
-        blind_vec: &Vec<BigInt>,
-        y_vec: &Vec<GE>,
+        decom1_vec: &Vec<KeyGenBroadcastMessage2>,
         bc1_vec: &Vec<KeyGenBroadcastMessage1>,
         parties: &[usize],
     ) -> Result<(VerifiableSS, Vec<FE>, usize), Error> {
         // test length:
-        assert_eq!(blind_vec.len(), params.share_count);
+        assert_eq!(decom1_vec.len(), params.share_count);
         assert_eq!(bc1_vec.len(), params.share_count);
-        assert_eq!(y_vec.len(), params.share_count);
         // test decommitments
         let correct_key_correct_decom_all = (0..bc1_vec.len())
             .map(|i| {
                 HashCommitment::create_commitment_with_user_defined_randomness(
-                    &y_vec[i].bytes_compressed_to_big_int(),
-                    &blind_vec[i],
+                    &decom1_vec[i].y_i.bytes_compressed_to_big_int(),
+                    &decom1_vec[i].blind_factor,
                 ) == bc1_vec[i].com
             })
             .all(|x| x == true);
@@ -170,6 +201,7 @@ impl Keys {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Copy)]
 pub struct LocalSig {
     gamma_i: FE,
     e: FE,
@@ -261,7 +293,7 @@ impl LocalSig {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Signature {
     pub s: FE,
     pub e: FE,
