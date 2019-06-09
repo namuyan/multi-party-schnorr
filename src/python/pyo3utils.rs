@@ -2,7 +2,6 @@ use curv::cryptographic_primitives::secret_sharing::feldman_vss::{VerifiableSS, 
 use curv::elliptic::curves::traits::ECPoint;
 use curv::{BigInt,GE,PK};
 use curv::arithmetic::traits::Converter;
-use curv::ErrorKey;
 use pyo3::prelude::*;
 use pyo3::exceptions::ValueError;
 use pyo3::types::PyList;
@@ -10,7 +9,7 @@ use pyo3::types::PyList;
 
 /// Points type
 #[derive(PartialEq, Debug)]
-pub enum KeyType {
+pub enum PyKeyType {
     SingleSig,
     AggregateSig,
     ThresholdSig
@@ -33,9 +32,9 @@ pub fn bytes2point_inner(bytes: &[u8]) -> Result<GE, String> {
             if len == 33 && (prefix == 2 || prefix == 3) {
                 let mut bytes = bytes.to_vec();
                 match key_type {
-                    KeyType::SingleSig => (),
-                    KeyType::AggregateSig => bytes[0] -= 3,
-                    KeyType::ThresholdSig => bytes[0] -= 6
+                    PyKeyType::SingleSig => (),
+                    PyKeyType::AggregateSig => bytes[0] -= 3,
+                    PyKeyType::ThresholdSig => bytes[0] -= 6
                 }
                 let public = PK::from_slice(&bytes).map_err(
                     |_| format!("0 invalid pk point: {}", hex_bytes))?;
@@ -63,22 +62,22 @@ pub fn bigint2bytes(int: &BigInt) -> Result<[u8;32], String> {
     Ok(bytes)
 }
 
-/// return (is_musig, normal_prefix,)
+/// return (PyKeyType, normal_prefix)
 /// warning: I will add more params
-pub fn decode_public_bytes(bytes: &[u8]) -> Result<(KeyType, u8), ErrorKey> {
+pub fn decode_public_bytes(bytes: &[u8]) -> Result<(PyKeyType, u8), ()> {
     match bytes.get(0) {
         Some(prefix) => {
             if *prefix == 2 || *prefix == 3 || *prefix == 4 {
-                Ok((KeyType::SingleSig, *prefix))
+                Ok((PyKeyType::SingleSig, *prefix))
             } else if *prefix == 5 || *prefix == 6 || *prefix == 7 {
-                Ok((KeyType::AggregateSig, *prefix - 3))
+                Ok((PyKeyType::AggregateSig, *prefix - 3))
             } else if *prefix == 8 || *prefix == 9 || *prefix == 10 {
-                Ok((KeyType::ThresholdSig, *prefix - 6))
+                Ok((PyKeyType::ThresholdSig, *prefix - 6))
             } else {
-                Err(ErrorKey::InvalidPublicKey)
+                Err(())
             }
         },
-        None => Err(ErrorKey::InvalidPublicKey)
+        None => Err(())
     }
 }
 
@@ -92,7 +91,7 @@ pub fn pylist2points(list: &PyList) -> PyResult<Vec<GE>> {
     Ok(tmp)
 }
 
-pub fn pylist2bigints(list: &PyList) -> PyResult<Vec<BigInt>> {
+pub fn pylist2bigint(list: &PyList) -> PyResult<Vec<BigInt>> {
     let bigints: Vec<Vec<u8>> = list.extract()?;
     let mut tmp = Vec::with_capacity(bigints.len());
     for int in bigints {
@@ -122,7 +121,7 @@ pub fn pylist2vss(t: usize, n: usize, vss_points: &PyList) -> PyResult<Vec<Verif
     Ok(result)
 }
 
-pub fn option_list2parties_index(_py: Python, n: usize, parties_index: Option<&PyList>)
+pub fn pylist2parties_index(_py: Python, n: usize, parties_index: Option<&PyList>)
     -> PyResult<Vec<usize>> {
     let vec = match parties_index {
         Some(list) => {

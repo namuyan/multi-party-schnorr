@@ -28,8 +28,8 @@ fn verify_aggregate_sign(_py: Python, sig: &PyBytes, R: &PyBytes, apk: &PyBytes,
         Some(is_musig) => is_musig,
         None => match decode_public_bytes(apk.as_bytes()) {
             Ok((key_type, _)) => match key_type {
-                KeyType::SingleSig => false,
-                KeyType::AggregateSig => true,
+                PyKeyType::SingleSig => false,
+                PyKeyType::AggregateSig => true,
                 _ => return Err(ValueError::py_err("not found pubkey prefix"))
             },
             Err(_) => return Err(ValueError::py_err("cannot find prefix and is_musig"))
@@ -138,7 +138,7 @@ fn summarize_local_signature(
     parties_index: &PyList, vss_points: &PyList, eph_vss_points: &PyList)
     -> PyResult<PyObject> {
     let e: FE = ECScalar::from(&BigInt::from(e.as_bytes()));
-    let gammas: Vec<FE> = pylist2bigints(gammas)?.iter()
+    let gammas: Vec<FE> = pylist2bigint(gammas)?.iter()
         .map(|int| ECScalar::from(int)).collect();
     let mut tmp = Vec::with_capacity(parties_index.len());
     for int in parties_index.iter() {

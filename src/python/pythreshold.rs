@@ -37,7 +37,7 @@ impl PyThresholdKey {
         if t >= n {
             return Err(ValueError::py_err("require \"t < n\""));
         };
-        let parties_index = option_list2parties_index(_py, n, parties_index)?;
+        let parties_index = pylist2parties_index(_py, n, parties_index)?;
         let my_index = None;  // unknown at this point
         let keypair = generate_keypair();
         {
@@ -67,7 +67,7 @@ impl PyThresholdKey {
         let secret: FE = ECScalar::from(&BigInt::from(secret.as_bytes()));
         let public: GE = ec_point.scalar_mul(&secret.get_element());
         let keypair = PyKeyPair {secret, public};
-        let parties_index = option_list2parties_index(_py, n, parties_index)?;
+        let parties_index = pylist2parties_index(_py, n, parties_index)?;
         let my_index = Some(my_index);
         Ok(PyThresholdKey { keypair, my_index, parties_index, t, n})
     }

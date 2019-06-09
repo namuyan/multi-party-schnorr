@@ -6,4 +6,5 @@ pub mod pythreshold;
 pub mod verifyutils;
 pub mod modules;
 pub mod pyo3utils;
+#[cfg(test)]
 mod test;
