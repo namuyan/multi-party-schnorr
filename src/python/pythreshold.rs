@@ -72,7 +72,7 @@ impl PyThresholdKey {
         Ok(PyThresholdKey { keypair, my_index, parties_index, t, n})
     }
 
-    fn get_commitment(&self, _py: Python) -> Py<PyTuple> {
+    fn get_commitment(&self, _py: Python) -> PyObject {
         let blind_factor = BigInt::sample(256);
         let commitment = HashCommitment::create_commitment_with_user_defined_randomness(
             &self.keypair.public.bytes_compressed_to_big_int(),
@@ -83,7 +83,7 @@ impl PyThresholdKey {
         PyTuple::new(_py, &[
             PyBytes::new(_py, &blind_factor),
             PyBytes::new(_py, &commitment),
-        ])
+        ]).to_object(_py)
     }
 
     fn get_variable_secret_sharing(&self, _py: Python) -> PyResult<PyObject> {
@@ -91,10 +91,12 @@ impl PyThresholdKey {
         let (vss_scheme, secret_shares) = VerifiableSS::share_at_indices(
                 self.t, self.n, &self.keypair.secret, &self.parties_index);
 
-        let vss_point: Vec<Py<PyBytes>> = vss_scheme.commitments.iter()
-            .map(|com| PyBytes::new(_py, &com.get_element().serialize())).collect();
-        let secret_scalar: Vec<Py<PyBytes>> = secret_shares.iter()
-            .map(|int| PyBytes::new(_py, &bigint2bytes(&int.to_big_int()).unwrap())).collect();
+        let vss_point: Vec<&PyBytes> = vss_scheme.commitments.iter()
+            .map(|com| PyBytes::new(_py, &com.get_element().serialize()))
+            .collect();
+        let secret_scalar: Vec<&PyBytes> = secret_shares.iter()
+            .map(|int| PyBytes::new(_py, &bigint2bytes(&int.to_big_int()).unwrap()))
+            .collect();
         Ok(PyTuple::new(_py, &[
             PyTuple::new(_py, &vss_point),
             PyTuple::new(_py, &secret_scalar),

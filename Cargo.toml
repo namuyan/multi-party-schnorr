@@ -25,7 +25,8 @@ features = ["ec_secp256k1"]
 git = "https://github.com/KZen-networks/centipede"
 
 [dependencies.pyo3]
-version = "0.6.0-alpha.4"
+version = "0.7.0"
+features = ["extension-module"]
 
 [dev-dependencies]
 hex = "0.3.2"

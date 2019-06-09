@@ -101,7 +101,7 @@ impl PyAggregate {
         Ok(PyAggregate {keypair, eph, apk, hash, r_tag: r_hat, is_musig})
     }
 
-    fn get_partial_sign(&self, _py: Python, message: &PyBytes) -> Py<PyBytes> {
+    fn get_partial_sign(&self, _py: Python, message: &PyBytes) -> PyObject {
         // compute c = H0(Rtag || apk || message)
         let message = message.as_bytes();
         let c = ephemeral_hash_0(&self.r_tag, &self.apk, message, self.is_musig);
@@ -111,31 +111,31 @@ impl PyAggregate {
         let s_i = self.eph.keypair.secret.clone() + (c_fe * self.keypair.secret.clone() * a_fe);
         // encode to bytes
         let s_i = bigint2bytes(&s_i.to_big_int()).unwrap();
-        PyBytes::new(_py, &s_i)
+        PyBytes::new(_py, &s_i).to_object(_py)
     }
 
-    fn R(&self, _py: Python) -> Py<PyBytes> {
+    fn R(&self, _py: Python) -> PyObject {
         let int = self.r_tag.x_coor().unwrap();
         let bytes = bigint2bytes(&int).unwrap();
-        PyBytes::new(_py, &bytes)
+        PyBytes::new(_py, &bytes).to_object(_py)
     }
 
-    fn apk(&self, _py: Python) -> Py<PyBytes> {
+    fn apk(&self, _py: Python) -> PyObject {
         let mut bytes = self.apk.get_element().serialize();
         if self.is_musig {
             bytes[0] += 3; // 0x02 0x03 0x04 => 0x05 0x06 0x07
         }
-        PyBytes::new(_py, &bytes)
+        PyBytes::new(_py, &bytes).to_object(_py)
     }
 
-    fn add_signature_parts(&self, _py: Python,  s1: &PyBytes, s2: &PyBytes) -> Py<PyBytes> {
+    fn add_signature_parts(&self, _py: Python,  s1: &PyBytes, s2: &PyBytes) -> PyObject {
         let s1 = BigInt::from(s1.as_bytes());
         let s2 = BigInt::from(s2.as_bytes());
         let s1_fe: FE = ECScalar::from(&s1);
         let s2_fe: FE = ECScalar::from(&s2);
         let s1_plus_s2 = s1_fe.add(&s2_fe.get_element());
         let s = bigint2bytes(&s1_plus_s2.to_big_int()).unwrap();
-        PyBytes::new(_py, &s)
+        PyBytes::new(_py, &s).to_object(_py)
     }
 }
 

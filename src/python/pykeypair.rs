@@ -30,18 +30,18 @@ impl PyKeyPair {
         Ok(PyKeyPair {secret, public})
     }
 
-    fn get_secret_key(&self, _py: Python) -> Py<PyBytes> {
+    fn get_secret_key(&self, _py: Python) -> PyObject {
         let secret = self.secret.to_big_int();
         let bytes = bigint2bytes(&secret).unwrap();
-        PyBytes::new(_py, &bytes)
+        PyBytes::new(_py, &bytes).to_object(_py)
     }
 
-    fn get_public_key(&self, _py: Python) -> Py<PyBytes> {
+    fn get_public_key(&self, _py: Python) -> PyObject {
         let public = self.public.get_element().serialize();
-        PyBytes::new(_py, &public)
+        PyBytes::new(_py, &public).to_object(_py)
     }
 
-    fn get_single_sign(&self, _py: Python, message: &PyBytes) -> Py<PyTuple> {
+    fn get_single_sign(&self, _py: Python, message: &PyBytes) -> PyObject {
         let message = message.as_bytes();
         let base_point: GE = ECPoint::generator();
         let hash_private_key_message =
@@ -71,7 +71,7 @@ impl PyKeyPair {
         PyTuple::new(_py, &[
             PyBytes::new(_py, &bigint2bytes(&R).unwrap()),
             PyBytes::new(_py, &bigint2bytes(&s).unwrap()),
-        ])
+        ]).to_object(_py)
     }
 
     /// do not forget to pass through a hash function
