@@ -24,7 +24,7 @@ setup(
     url="https://github.com/namuyan/multi-party-schnorr",
     long_description=readme,
     long_description_content_type='text/markdown',
-    version="0.1.6",
+    version="0.1.7",
     classifiers=[
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Programming Language :: Python :: 3",
