@@ -23,8 +23,8 @@ pub struct PyEphemeralKey {
 #[pymethods]
 impl PyEphemeralKey {
     #[new]
-    fn new(obj: &PyRawObject) {
-        let keypair = generate_keypair();
+    fn new(obj: &PyRawObject, _py: Python) {
+        let keypair = generate_keypair(_py);
         let (commitment, blind_factor) = HashCommitment::create_commitment(
             &keypair.public.bytes_compressed_to_big_int());
         obj.init(PyEphemeralKey {keypair, commitment, blind_factor});

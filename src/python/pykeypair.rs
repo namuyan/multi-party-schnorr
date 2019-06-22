@@ -17,8 +17,8 @@ pub struct PyKeyPair {
 #[pymethods]
 impl PyKeyPair {
     #[new]
-    fn new(obj: &PyRawObject) {
-        obj.init(generate_keypair());
+    fn new(obj: &PyRawObject, _py: Python) {
+        obj.init(generate_keypair(_py));
     }
 
     #[classmethod]
@@ -83,9 +83,12 @@ impl PyKeyPair {
     }
 }
 
-pub fn generate_keypair() -> PyKeyPair {
-    let ec_point: GE = ECPoint::generator();
-    let secret: FE = ECScalar::new_random();
-    let public: GE = ec_point.scalar_mul(&secret.get_element());
-    PyKeyPair {secret, public}
+pub fn generate_keypair(_py: Python) -> PyKeyPair {
+    // release GIL
+    _py.allow_threads(move || {
+        let ec_point: GE = ECPoint::generator();
+        let secret: FE = ECScalar::new_random();
+        let public: GE = ec_point.scalar_mul(&secret.get_element());
+        PyKeyPair {secret, public}
+    })
 }

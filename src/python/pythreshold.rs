@@ -39,7 +39,7 @@ impl PyThresholdKey {
         };
         let parties_index = pylist2parties_index(_py, n, parties_index)?;
         let my_index = None;  // unknown at this point
-        let keypair = generate_keypair();
+        let keypair = generate_keypair(_py);
         {
             // commitment check
             let blind_factor = BigInt::sample(256);
@@ -199,12 +199,20 @@ impl PyThresholdKey {
                     }
                 });
             };
+
             // wait for all jobs finish
-            for result in rx.iter().take(self.n) {
-                if result.is_err() {
-                    return Err(ValueError::py_err(result.unwrap_err()));
+            let n = self.n.to_owned();
+            let exception = _py.allow_threads(move || {
+                for result in rx.iter().take(n) {
+                    if result.is_err() {
+                        return Err(result.unwrap_err())
+                    }
                 }
-            }
+                Ok(())
+            });
+            exception.map_err(|err| {
+                ValueError::py_err(err)
+            })?;
         }
         // success generate sharedKey
         self.my_index = Some(my_index);

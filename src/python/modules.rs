@@ -52,8 +52,9 @@ fn verify_auto(_py: Python, s: &PyBytes, r: &PyBytes, apk: &PyBytes, message: &P
     let r = r.as_bytes();
     let apk = apk.as_bytes();
     let message = message.as_bytes();
-    let is_verify = verify_auto_signature(s, r, apk, message).map_err(
-        |err| ValueError::py_err(err))?;
+    let is_verify = _py.allow_threads(move || {
+        verify_auto_signature(s, r, apk, message)
+    }).map_err(|err| ValueError::py_err(err))?;
     Ok(is_verify.to_object(_py))
 }
 
@@ -75,20 +76,26 @@ fn verify_auto_multi(_py: Python, tasks: &PyList, n_workers: usize, f_raise: boo
             tx.send(verify_auto_signature(&s, &r, &apk, &message)).unwrap()
         });
     };
-    let mut response = Vec::with_capacity(n_jobs);
-    for result in rx.iter().take(n_jobs) {
-        let is_verify = match result {
-            Ok(is_verify) => is_verify,
-            Err(err) => {
-                if f_raise {
-                    return Err(ValueError::py_err(err))
+    let exception = _py.allow_threads(move || {
+        let mut response = Vec::with_capacity(n_jobs);
+        for result in rx.iter().take(n_jobs) {
+            let is_verify = match result {
+                Ok(is_verify) => is_verify,
+                Err(err) => {
+                    if f_raise {
+                        return Err(err)
+                    }
+                    false
                 }
-                false
-            }
+            };
+            response.push(is_verify);
         };
-        response.push(is_verify);
-    };
-    Ok(response.to_object(_py))
+        Ok(response)
+    });
+    match exception {
+        Ok(response) => Ok(response.to_object(_py)),
+        Err(err) => Err(ValueError::py_err(err))
+    }
 }
 
 /// summarize_public_points(signers: list) -> bytes
