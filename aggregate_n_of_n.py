@@ -30,4 +30,4 @@ print("R:", R.hex())
 res = multi_party_schnorr.verify_aggregate_sign(sig012, R, apk, msg)  # 35.5mS
 print("result:", res)
 print("verify auto?", multi_party_schnorr.verify_auto(sig012, R, apk, msg))
-print(int((time() - start, 4) * 1000), "mS")
+print(int((time() - start) * 1000), "mS")

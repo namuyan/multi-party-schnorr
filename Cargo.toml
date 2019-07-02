@@ -18,7 +18,7 @@ hex = "0.3.2"
 [dependencies.curv]
 git = "https://github.com/namuyan/curv"
 features = ["ec_secp256k1"]
- 
+
 [dependencies.pyo3]
 version = "0.7.0"
 features = ["extension-module"]
