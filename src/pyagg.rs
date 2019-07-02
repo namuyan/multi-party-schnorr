@@ -122,7 +122,7 @@ impl PyAggregate {
     }
 
     fn apk(&self, _py: Python) -> PyObject {
-        let mut bytes = self.apk.get_element().serialize();
+        let mut bytes = self.apk.get_element().serialize_compressed();
         if self.is_musig {
             bytes[0] += 3; // 0x02 0x03 0x04 => 0x05 0x06 0x07
         }

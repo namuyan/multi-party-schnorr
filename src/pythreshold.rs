@@ -92,7 +92,7 @@ impl PyThresholdKey {
                 self.t, self.n, &self.keypair.secret, &self.parties_index);
 
         let vss_point: Vec<&PyBytes> = vss_scheme.commitments.iter()
-            .map(|com| PyBytes::new(_py, &com.get_element().serialize()))
+            .map(|com| PyBytes::new(_py, &com.get_element().serialize_compressed()))
             .collect();
         let secret_scalar: Vec<&PyBytes> = secret_shares.iter()
             .map(|int| PyBytes::new(_py, &bigint2bytes(&int.to_big_int()).unwrap()))

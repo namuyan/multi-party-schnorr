@@ -37,7 +37,7 @@ impl PyKeyPair {
     }
 
     fn get_public_key(&self, _py: Python) -> PyObject {
-        let public = self.public.get_element().serialize();
+        let public = self.public.get_element().serialize_compressed();
         PyBytes::new(_py, &public).to_object(_py)
     }
 
@@ -75,7 +75,7 @@ impl PyKeyPair {
     fn get_shared_point(&self, _py: Python, public: &PyBytes) -> PyResult<PyObject> {
         let public: GE = bytes2point(public.as_bytes())?;
         let point: GE = public.scalar_mul(&self.secret.get_element());
-        let point = point.get_element().serialize();
+        let point = point.get_element().serialize_compressed();
         Ok(PyObject::from(PyBytes::new(_py, &point)))
     }
 }

@@ -1,6 +1,7 @@
 import multi_party_schnorr
-from timeit import timeit
+from time import time
 
+start = time()
 pair0 = multi_party_schnorr.PyKeyPair()  # 27mS
 pair1 = multi_party_schnorr.PyKeyPair()
 pair2 = multi_party_schnorr.PyKeyPair()
@@ -29,3 +30,4 @@ print("R:", R.hex())
 res = multi_party_schnorr.verify_aggregate_sign(sig012, R, apk, msg)  # 35.5mS
 print("result:", res)
 print("verify auto?", multi_party_schnorr.verify_auto(sig012, R, apk, msg))
+print(int((time() - start, 4) * 1000), "mS")
