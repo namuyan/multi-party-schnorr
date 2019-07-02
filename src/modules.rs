@@ -1,8 +1,8 @@
-use crate::python::pykeypair::*;
-use crate::python::pyo3utils::*;
-use crate::python::pyagg::{PyAggregate,PyEphemeralKey,verify_aggregate_signature};
-use crate::python::pythreshold::*;
-use crate::python::verifyutils::verify_auto_signature;
+use crate::pykeypair::*;
+use crate::pyo3utils::*;
+use crate::pyagg::{PyAggregate,PyEphemeralKey,verify_aggregate_signature};
+use crate::pythreshold::*;
+use crate::verifyutils::verify_auto_signature;
 use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use curv::{BigInt, FE, GE};
 use pyo3::prelude::*;
@@ -13,7 +13,7 @@ use threadpool::ThreadPool;
 use std::sync::mpsc::channel;
 
 
-/// verify_aggregate_sign(sig: bytes, R: bytes, apk: bytes, message: bytes, is_musig: Optional[bool]) -> bool
+/// verify_aggregate_sign(sig: bytes, R: bytes, apk: bytes, message: bytes, is_musig=None) -> bool
 /// --
 ///
 /// verify aggregate signature (1of 1 and n of n)

@@ -1,5 +1,6 @@
-use crate::python::pyo3utils::{bytes2point, bigint2bytes};
-use crate::python::pykeypair::*;
+use crate::pyo3utils::{bytes2point, bigint2bytes};
+use crate::pykeypair::*;
+use crate::verifyutils::*;
 use curv::cryptographic_primitives::commitments::hash_commitment::HashCommitment;
 use curv::cryptographic_primitives::commitments::traits::Commitment;
 use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
@@ -187,24 +188,6 @@ fn ephemeral_test_com(r_to_test: &GE, blind_factor: &BigInt, comm: &BigInt) -> b
         blind_factor,
     );
     computed_comm == comm
-}
-
-
-fn ephemeral_hash_0(r_hat: &GE, apk: &GE, message: &[u8], musig_bit: bool) -> BigInt {
-    if musig_bit {
-        HSha256::create_hash(&[
-            &BigInt::from(0),
-            &r_hat.x_coor().unwrap(),
-            &apk.bytes_compressed_to_big_int(),
-            &BigInt::from(message),
-        ])
-    } else {
-        HSha256::create_hash(&[
-            &r_hat.x_coor().unwrap(),
-            &apk.bytes_compressed_to_big_int(),
-            &BigInt::from(message),
-        ])
-    }
 }
 
 

@@ -1,11 +1,11 @@
-use crate::python::pyo3utils::{bytes2point, bigint2bytes};
+use crate::pyo3utils::{bytes2point, bigint2bytes};
+use crate::verifyutils::*;
 use curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use curv::{BigInt, FE, GE};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyType, PyTuple};
 use curv::cryptographic_primitives::hashing::traits::Hash;
 use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
-use protocols::aggsig::EphemeralKey;
 
 #[pyclass]
 #[derive(Clone)]
@@ -51,7 +51,7 @@ impl PyKeyPair {
         //let (commitment, blind_factor) =
         //    HashCommitment::create_commitment(&ephemeral_public_key.bytes_compressed_to_big_int());
         // compute c = H0(Rtag || apk || message)
-        let c = EphemeralKey::hash_0(
+        let c = ephemeral_hash_0(
             &ephemeral_public_key,
             &self.public,
             message,
@@ -63,11 +63,8 @@ impl PyKeyPair {
         let s_fe = ephemeral_private_key.clone() + (c_fe * self.secret.clone() * a_fe);
         let s_tag = s_fe.to_big_int();
         // signature s:
-        let (R, s) = EphemeralKey::add_signature_parts(
-            s_tag,
-            &BigInt::from(0),
-            &ephemeral_public_key,
-        );
+        let R = ephemeral_public_key.x_coor().unwrap();
+        let s = add_scalar_parts(s_tag, &BigInt::from(0));
         PyTuple::new(_py, &[
             PyBytes::new(_py, &bigint2bytes(&R).unwrap()),
             PyBytes::new(_py, &bigint2bytes(&s).unwrap()),

@@ -8,11 +8,9 @@ authors = [
 
 [lib]
 name = "multi_party_schnorr"
-crate-type = ["lib", "cdylib"]
+crate-type = ["cdylib"]
 
 [dependencies]
-serde = "1.0"
-serde_derive = "1.0"
 num_cpus = "1.0"
 threadpool = "1.7.1"
 hex = "0.3.2"
@@ -20,9 +18,6 @@ hex = "0.3.2"
 [dependencies.curv]
 git = "https://github.com/KZen-networks/curv"
 features = ["ec_secp256k1"]
-
-[dependencies.centipede]
-git = "https://github.com/KZen-networks/centipede"
 
 [dependencies.pyo3]
 version = "0.7.0"

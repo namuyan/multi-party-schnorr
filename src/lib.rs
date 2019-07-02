@@ -14,34 +14,19 @@
     @license GPL-3.0+ <https://github.com/KZen-networks/multisig-schnorr/blob/master/LICENSE>
 */
 
-#[macro_use]
-extern crate serde_derive;
-extern crate serde;
+#![allow(non_snake_case)]
 
-extern crate centipede;
 extern crate curv;
 extern crate pyo3;
 extern crate num_cpus;
 extern crate threadpool;
 extern crate hex;
 
-pub mod protocols;
-pub mod python;
-
-#[derive(Copy, PartialEq, Eq, Clone, Debug)]
-pub enum Error {
-    InvalidKey,
-    InvalidSS,
-    InvalidCom,
-    InvalidSig,
-}
-
-use std::fmt;
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", &self)
-    }
-}
-
-impl std::error::Error for Error {}
+pub mod pykeypair;
+pub mod pyagg;
+pub mod pythreshold;
+pub mod verifyutils;
+pub mod modules;
+pub mod pyo3utils;
+#[cfg(test)]
+mod test;
