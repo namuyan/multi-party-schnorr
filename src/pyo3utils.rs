@@ -1,7 +1,10 @@
-use curv::cryptographic_primitives::secret_sharing::feldman_vss::{VerifiableSS, ShamirSecretSharing};
-use curv::elliptic::curves::traits::ECPoint;
-use curv::{BigInt,GE,PK};
-use curv::arithmetic::traits::Converter;
+use emerald_city::curv::cryptographic_primitives::secret_sharing::feldman_vss::{
+    VerifiableSS, ShamirSecretSharing,
+};
+use emerald_city::curv::arithmetic::traits::Converter;
+use emerald_city::curv::elliptic::curves::secp256_k1::{GE, PK};
+use emerald_city::curv::elliptic::curves::traits::ECPoint;
+use emerald_city::curv::arithmetic::num_bigint::BigInt;
 use pyo3::prelude::*;
 use pyo3::exceptions::ValueError;
 use pyo3::types::PyList;
@@ -96,7 +99,7 @@ pub fn pylist2bigint(list: &PyList) -> PyResult<Vec<BigInt>> {
     let bigints: Vec<Vec<u8>> = list.extract()?;
     let mut tmp = Vec::with_capacity(bigints.len());
     for int in bigints {
-        let int = BigInt::from(int.as_slice());
+        let int = BigInt::from_bytes_be(int.as_slice());
         tmp.push(int);
     }
     Ok(tmp)

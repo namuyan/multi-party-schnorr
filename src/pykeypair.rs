@@ -1,11 +1,16 @@
 use crate::pyo3utils::{bytes2point, bigint2bytes};
 use crate::verifyutils::*;
-use curv::elliptic::curves::traits::{ECPoint, ECScalar};
-use curv::{BigInt, FE, GE};
+use emerald_city::curv::cryptographic_primitives::hashing::{
+    hash_sha256::HSha256,
+    traits::Hash,
+};
+use emerald_city::curv::elliptic::curves::secp256_k1::{FE, GE};
+use emerald_city::curv::elliptic::curves::traits::{ECPoint, ECScalar};
+use emerald_city::curv::arithmetic::num_bigint::BigInt;
+use num_traits::{Zero, One};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyType, PyTuple};
-use curv::cryptographic_primitives::hashing::traits::Hash;
-use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
+
 
 #[pyclass]
 #[derive(Clone)]
@@ -25,7 +30,7 @@ impl PyKeyPair {
     fn from_secret_key(_cls: &PyType, secret: &PyBytes) -> PyResult<PyKeyPair> {
         let secret = secret.as_bytes();
         let ec_point: GE = ECPoint::generator();
-        let secret: FE = ECScalar::from(&BigInt::from(secret));
+        let secret: FE = ECScalar::from(&BigInt::from_bytes_be(secret));
         let public: GE = ec_point.scalar_mul(&secret.get_element());
         Ok(PyKeyPair {secret, public})
     }
@@ -45,7 +50,7 @@ impl PyKeyPair {
         let message = message.as_bytes();
         let base_point: GE = ECPoint::generator();
         let hash_private_key_message =
-            HSha256::create_hash(&[&self.secret.to_big_int(), &BigInt::from(message)]);
+            HSha256::create_hash(&[&self.secret.to_big_int(), &BigInt::from_bytes_be(message)]);
         let ephemeral_private_key: FE = ECScalar::from(&hash_private_key_message);
         let ephemeral_public_key = base_point.scalar_mul(&ephemeral_private_key.get_element());
         //let (commitment, blind_factor) =
@@ -59,12 +64,12 @@ impl PyKeyPair {
         );
         // sign
         let c_fe: FE = ECScalar::from(&c);
-        let a_fe: FE = ECScalar::from(&BigInt::from(1));
+        let a_fe: FE = ECScalar::from(&BigInt::one());
         let s_fe = ephemeral_private_key.clone() + (c_fe * self.secret.clone() * a_fe);
         let s_tag = s_fe.to_big_int();
         // signature s:
         let R = ephemeral_public_key.x_coor().unwrap();
-        let s = add_scalar_parts(s_tag, &BigInt::from(0));
+        let s = add_scalar_parts(s_tag, &BigInt::zero());
         PyTuple::new(_py, &[
             PyBytes::new(_py, &bigint2bytes(&R).unwrap()),
             PyBytes::new(_py, &bigint2bytes(&s).unwrap()),

@@ -1,12 +1,18 @@
 use crate::pyo3utils::{bytes2point, bigint2bytes};
 use crate::pykeypair::*;
 use crate::verifyutils::*;
-use curv::cryptographic_primitives::commitments::hash_commitment::HashCommitment;
-use curv::cryptographic_primitives::commitments::traits::Commitment;
-use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
-use curv::cryptographic_primitives::hashing::traits::Hash;
-use curv::elliptic::curves::traits::{ECPoint, ECScalar};
-use curv::{BigInt, FE, GE};
+use emerald_city::curv::cryptographic_primitives::commitments::{
+    hash_commitment::HashCommitment,
+    traits::Commitment,
+};
+use emerald_city::curv::cryptographic_primitives::hashing::{
+    hash_sha256::HSha256,
+    traits::Hash,
+};
+use emerald_city::curv::elliptic::curves::secp256_k1::{FE, GE};
+use emerald_city::curv::elliptic::curves::traits::{ECPoint, ECScalar};
+use emerald_city::curv::arithmetic::num_bigint::BigInt;
+use num_traits::{Zero, One};
 use pyo3::prelude::*;
 use pyo3::exceptions::ValueError;
 use pyo3::types::{PyBytes,PyList,PyType};
@@ -79,10 +85,10 @@ impl PyAggregate {
         let mut pks = Vec::with_capacity(signers.len());
         for (index, key) in signers.into_iter().enumerate() {
             let public = bytes2point(key.as_slice())?;
-            pks.push(public);
             if public == keypair.public {
                 party_index = Some(index)
             }
+            pks.push(public);
         };
         let party_index = party_index.ok_or(
             ValueError::py_err("not found your public key in signers"))?;
@@ -130,8 +136,8 @@ impl PyAggregate {
     }
 
     fn add_signature_parts(&self, _py: Python,  s1: &PyBytes, s2: &PyBytes) -> PyObject {
-        let s1 = BigInt::from(s1.as_bytes());
-        let s2 = BigInt::from(s2.as_bytes());
+        let s1 = BigInt::from_bytes_be(s1.as_bytes());
+        let s2 = BigInt::from_bytes_be(s2.as_bytes());
         let s1_fe: FE = ECScalar::from(&s1);
         let s2_fe: FE = ECScalar::from(&s2);
         let s1_plus_s2 = s1_fe.add(&s2_fe.get_element());
@@ -143,7 +149,7 @@ impl PyAggregate {
 
 /// generate aggregate Key
 fn key_aggregation_n(pks: &[GE], party_index: usize) -> (GE, BigInt) {
-    let bn_1 = BigInt::from(1);
+    let bn_1 = BigInt::one();
     let x_coor_vec: Vec<BigInt> = pks
         .iter()
         .map(|pk| pk.bytes_compressed_to_big_int())
@@ -197,16 +203,16 @@ pub fn verify_aggregate_signature(signature: &BigInt, r_x: &BigInt, apk: &GE, me
 
     let c = if musig_bit {
         HSha256::create_hash(&[
-            &BigInt::from(0),
+            &BigInt::zero(),
             &r_x,
             &apk.bytes_compressed_to_big_int(),
-            &BigInt::from(message),
+            &BigInt::from_bytes_be(message),
         ])
     } else {
         HSha256::create_hash(&[
             r_x,
             &apk.bytes_compressed_to_big_int(),
-            &BigInt::from(message),
+            &BigInt::from_bytes_be(message),
         ])
     };
 

@@ -1,16 +1,22 @@
 use crate::pykeypair::*;
 use crate::pyo3utils::*;
-use curv::cryptographic_primitives::commitments::hash_commitment::HashCommitment;
-use curv::cryptographic_primitives::commitments::traits::Commitment;
-use curv::elliptic::curves::traits::{ECPoint, ECScalar};
-use curv::cryptographic_primitives::secret_sharing::feldman_vss::{VerifiableSS,ShamirSecretSharing};
-use curv::cryptographic_primitives::hashing::traits::Hash;
-use curv::arithmetic::traits::Samplable;
-use curv::{BigInt, FE, GE};
+use emerald_city::curv::cryptographic_primitives::secret_sharing::feldman_vss::{
+    VerifiableSS,
+    ShamirSecretSharing,
+};
+use emerald_city::curv::cryptographic_primitives::commitments::{
+    hash_commitment::HashCommitment,
+    traits::Commitment,
+};
+use emerald_city::curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
+use emerald_city::curv::arithmetic::traits::Samplable;
+use emerald_city::curv::cryptographic_primitives::hashing::traits::Hash;
+use emerald_city::curv::elliptic::curves::secp256_k1::{FE, GE};
+use emerald_city::curv::elliptic::curves::traits::{ECPoint, ECScalar};
+use emerald_city::curv::arithmetic::num_bigint::BigInt;
 use pyo3::prelude::*;
 use pyo3::exceptions::ValueError;
 use pyo3::types::{PyBytes,PyList,PyTuple,PyType};
-use curv::cryptographic_primitives::hashing::hash_sha256::HSha256;
 use threadpool::ThreadPool;
 use std::sync::mpsc::channel;
 
@@ -64,7 +70,7 @@ impl PyThresholdKey {
             return Err(ValueError::py_err("require \"t < n\""));
         };
         let ec_point: GE = ECPoint::generator();
-        let secret: FE = ECScalar::from(&BigInt::from(secret.as_bytes()));
+        let secret: FE = ECScalar::from(&BigInt::from_bytes_be(secret.as_bytes()));
         let public: GE = ec_point.scalar_mul(&secret.get_element());
         let keypair = PyKeyPair {secret, public};
         let parties_index = pylist2parties_index(_py, n, parties_index)?;
@@ -139,7 +145,7 @@ impl PyThresholdKey {
             for lists in secret_scalars {
                 let mut inner = Vec::with_capacity(lists.len());
                 for scalar in lists {
-                    let s: FE = ECScalar::from(&BigInt::from(scalar.as_slice()));
+                    let s: FE = ECScalar::from(&BigInt::from_bytes_be(scalar.as_slice()));
                     inner.push(s);
                 };
                 tmp.push(inner);
@@ -240,7 +246,7 @@ pub fn compute_local_signature(share: &FE, eph_share: &FE, Y: &GE, V: &GE, messa
     let e_bn = HSha256::create_hash(&[
             &V.bytes_compressed_to_big_int(),
             &Y.bytes_compressed_to_big_int(),
-            &BigInt::from(message),
+            &BigInt::from_bytes_be(message),
     ]);
     let e: FE = ECScalar::from(&e_bn);
     let gamma_i = beta_i + e.clone() * alpha_i;
@@ -315,7 +321,7 @@ pub fn verify_threshold_signature(sigma: FE, Y: &GE, V: &GE, message: &[u8]) -> 
     let e_bn = HSha256::create_hash(&[
         &V.bytes_compressed_to_big_int(),
         &Y.bytes_compressed_to_big_int(),
-        &BigInt::from(message),
+        &BigInt::from_bytes_be(message),
     ]);
     let e: FE = ECScalar::from(&e_bn);
 

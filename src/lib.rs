@@ -16,7 +16,8 @@
 
 #![allow(non_snake_case)]
 
-extern crate curv;
+extern crate emerald_city;
+extern crate num_traits;
 extern crate pyo3;
 extern crate num_cpus;
 extern crate threadpool;

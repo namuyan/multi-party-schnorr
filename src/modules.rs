@@ -3,8 +3,9 @@ use crate::pyo3utils::*;
 use crate::pyagg::{PyAggregate,PyEphemeralKey,verify_aggregate_signature};
 use crate::pythreshold::*;
 use crate::verifyutils::verify_auto_signature;
-use curv::elliptic::curves::traits::{ECPoint, ECScalar};
-use curv::{BigInt, FE, GE};
+use emerald_city::curv::elliptic::curves::secp256_k1::{FE, GE};
+use emerald_city::curv::elliptic::curves::traits::{ECPoint, ECScalar};
+use emerald_city::curv::arithmetic::num_bigint::BigInt;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
 use pyo3::types::{PyBytes, PyList, PyTuple};
@@ -22,8 +23,8 @@ use std::sync::mpsc::channel;
 #[pyfunction]
 fn verify_aggregate_sign(_py: Python, sig: &PyBytes, R: &PyBytes, apk: &PyBytes, message: &PyBytes, is_musig: Option<bool>)
     -> PyResult<PyObject> {
-    let sig = BigInt::from(sig.as_bytes());
-    let R = BigInt::from(R.as_bytes());
+    let sig = BigInt::from_bytes_be(sig.as_bytes());
+    let R = BigInt::from_bytes_be(R.as_bytes());
     let is_musig = match is_musig {
         Some(is_musig) => is_musig,
         None => match decode_public_bytes(apk.as_bytes()) {
@@ -120,8 +121,8 @@ fn summarize_public_points(_py: Python, signers: &PyList) -> PyResult<PyObject> 
 #[pyfunction]
 fn get_local_signature(_py: Python, share: &PyBytes, eph_share: &PyBytes, Y: &PyBytes, V: &PyBytes, message: &PyBytes)
     -> PyResult<PyObject> {
-    let share: FE = ECScalar::from(&BigInt::from(share.as_bytes()));
-    let eph_share: FE = ECScalar::from(&BigInt::from(eph_share.as_bytes()));
+    let share: FE = ECScalar::from(&BigInt::from_bytes_be(share.as_bytes()));
+    let eph_share: FE = ECScalar::from(&BigInt::from_bytes_be(eph_share.as_bytes()));
     let Y: GE = bytes2point(Y.as_bytes())?;  // sharedKey
     let V: GE = bytes2point(V.as_bytes())?;  // eph sharedKey
     let message = message.as_bytes();
@@ -144,7 +145,7 @@ fn summarize_local_signature(
     _py: Python, t: usize, n: usize, m: usize, e: &PyBytes, gammas: &PyList,
     parties_index: &PyList, vss_points: &PyList, eph_vss_points: &PyList)
     -> PyResult<PyObject> {
-    let e: FE = ECScalar::from(&BigInt::from(e.as_bytes()));
+    let e: FE = ECScalar::from(&BigInt::from_bytes_be(e.as_bytes()));
     let gammas: Vec<FE> = pylist2bigint(gammas)?.iter()
         .map(|int| ECScalar::from(int)).collect();
     let mut tmp = Vec::with_capacity(parties_index.len());
@@ -173,7 +174,7 @@ fn summarize_local_signature(
 #[pyfunction]
 fn verify_threshold_sign(sigma: &PyBytes, Y: &PyBytes, V: &PyBytes, message: &PyBytes)
     -> PyResult<bool> {
-    let sigma = ECScalar::from(&BigInt::from(sigma.as_bytes()));
+    let sigma = ECScalar::from(&BigInt::from_bytes_be(sigma.as_bytes()));
     let Y = bytes2point(Y.as_bytes())?;
     let V = bytes2point(V.as_bytes())?;
     let verify = verify_threshold_signature(sigma, &Y, &V, message.as_bytes());
