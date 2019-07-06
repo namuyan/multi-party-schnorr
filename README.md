@@ -41,6 +41,14 @@ compressed key prefix
 * `0x05, 0x06, 0x07` => for n of n aggregate signature
 * `0x08, 0x09, 0x0a` => for t of n threshold signature
 
+performance
+----
+type | secp256k1(~0.1.7) | libsecp256k1-rs(0.1.8) | emerald-city(0.1.9~) | test code link |
+------------------|-----------|----|--------|-------|
+1 of 1 aggregate | 112ms   |   3ms  | 1ms   |  [aggregate_1_of_1.py](https://github.com/namuyan/multi-party-schnorr/blob/master/aggregate_1_of_1.py) |
+n of n aggregate | 458ms   |   7ms  | 3ms   | [aggregate_n_of_n.py](https://github.com/namuyan/multi-party-schnorr/blob/master/aggregate_n_of_n.py)  |
+t of n threshold | 2475ms   |  68ms | 33ms  | [thresholdbig_t_of_n.py](https://github.com/namuyan/multi-party-schnorr/blob/master/thresholdbig_t_of_n.py) |
+
 Development Process
 -------------------
 This contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).
