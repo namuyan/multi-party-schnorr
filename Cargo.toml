@@ -17,7 +17,7 @@ hex = "0.3.2"
 num-traits = "0.2.6"
 
 [dependencies.emerald-city]
-git = "https://github.com/KZen-networks/emerald-city"
+version = "0.2.0"
 
 [dependencies.pyo3]
 version = "0.7.0"
