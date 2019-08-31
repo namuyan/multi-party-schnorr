@@ -1,6 +1,8 @@
 import multi_party_schnorr
 from time import time
 
+multi_party_schnorr.PyKeyPair()  # dummy
+
 start = time()
 t = 2  # threshold
 n = 5  # signers
@@ -83,5 +85,5 @@ print("sigma", sigma.hex())
 sign_start = time()
 r = multi_party_schnorr.verify_threshold_sign(sigma, Y, V, msg)
 print("verify?", r, round((time()-sign_start)*1000), "mSec")
-print("finish", round(time() - start, 3), "Sec")
+print("finish", int((time() - start)*1000), "mSec")
 print("verify auto?", multi_party_schnorr.verify_auto(sigma, V, Y, msg))

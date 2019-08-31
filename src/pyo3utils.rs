@@ -40,9 +40,9 @@ pub fn bytes2point_inner(bytes: &[u8]) -> Result<GE, String> {
                     PyKeyType::AggregateSig => template[0] -= 3,
                     PyKeyType::ThresholdSig => template[0] -= 6
                 }
-                let public = PK::parse_compressed(&template).map_err(
+                let public = PK::from_slice(&template).map_err(
                     |_| format!("0 invalid pk point: {}", hex_bytes))?;
-                GE::from_bytes(&public.serialize()[1..]).map_err(
+                GE::from_bytes(&public.serialize_uncompressed()[1..]).map_err(
                     |_| format!("1 invalid pk point: {}", hex_bytes))
             }else if len == 65 && prefix == 4 {
                 GE::from_bytes(&bytes[1..]).map_err(

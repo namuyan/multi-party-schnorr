@@ -1,7 +1,9 @@
 from multi_party_schnorr import PyThresholdKey, summarize_public_points, \
-    get_local_signature, summarize_local_signature, verify_threshold_sign, verify_auto
+    get_local_signature, summarize_local_signature, verify_threshold_sign, verify_auto, PyKeyPair
 from time import time
 from random import shuffle
+
+PyKeyPair()  # dummy
 
 start = time()
 t = 2  # threshold

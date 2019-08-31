@@ -108,7 +108,7 @@ fn verify_auto_multi(_py: Python, tasks: &PyList, n_workers: usize, f_raise: boo
 fn summarize_public_points(_py: Python, signers: &PyList) -> PyResult<PyObject> {
     let signers = pylist2points(&signers)?;
     let sum = sum_public_points(&signers)?;
-    let mut sum = sum.get_element().serialize_compressed();
+    let mut sum = sum.get_element().serialize();
     sum[0] += 6;  // 0x02 0x03 0x04 => 0x08 0x09 0x0a
     Ok(PyBytes::new(_py, &sum).to_object(_py))
 }
