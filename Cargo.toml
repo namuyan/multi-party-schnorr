@@ -1,6 +1,6 @@
 [package]
 name = "multi-party-schnorr"
-version = "0.2.0"
+version = "0.2.1"
 authors = [
     "Omer <omer@kzencorp.com>",
     "Gary <gary@kzencorp.com>"
@@ -21,7 +21,7 @@ git = "https://github.com/namuyan/emerald-city"
 branch = "secp"
 
 [dependencies.pyo3]
-version = "0.8.2"
+version = "0.9.0"
 features = ["extension-module"]
 
 [dev-dependencies]

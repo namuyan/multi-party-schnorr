@@ -22,8 +22,8 @@ pub struct PyKeyPair {
 #[pymethods]
 impl PyKeyPair {
     #[new]
-    fn new(obj: &PyRawObject, _py: Python) {
-        obj.init(generate_keypair(_py));
+    fn new(py: Python) -> Self {
+        generate_keypair(py)
     }
 
     #[classmethod]

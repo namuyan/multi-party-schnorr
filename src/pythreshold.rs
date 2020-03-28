@@ -191,18 +191,21 @@ impl PyThresholdKey {
             let (tx, rx) = channel();
             for i in 0..self.n {
                 let vss_scheme = vss_scheme_vec[i].to_owned();
-                let share_point = party_share[i].to_owned();
+                let secret_share = party_share[i].to_owned();
                 let position = self.parties_index[my_index].to_owned();
                 let public_key = signers[i].to_owned();
                 let tx = tx.clone();
                 pool.execute(move || {
-                    if vss_scheme.validate_share(&share_point, position).is_err() {
-                        tx.send(Err(format!("failed vss validation check: idx={}", i)));
+                    match if vss_scheme.validate_share(&secret_share, position).is_err() {
+                        tx.send(Err(format!("failed vss validation check: idx={}", i)))
                     } else if vss_scheme.commitments[0] != public_key {
-                        tx.send(Err(format!("failed vss commitment signer check: idx={}", i)));
+                        tx.send(Err(format!("failed vss commitment signer check: idx={}", i)))
                     } else {
-                        tx.send(Ok(()));
-                    }
+                        tx.send(Ok(()))
+                    } {
+                        Ok(_) => (),
+                        Err(_err) => eprintln!("pipe error: {:?}", _err.to_string())
+                    };
                 });
             };
 
