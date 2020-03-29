@@ -26,6 +26,10 @@ impl PyKeyPair {
         generate_keypair(py)
     }
 
+    /// from_secret_key(secret: bytes) -> PyKeyPair
+    /// --
+    ///
+    /// generate keypair from secret key
     #[classmethod]
     fn from_secret_key(_cls: &PyType, secret: &PyBytes) -> PyResult<PyKeyPair> {
         let secret = secret.as_bytes();
@@ -35,17 +39,30 @@ impl PyKeyPair {
         Ok(PyKeyPair {secret, public})
     }
 
+    /// get_secret_key() -> bytes
+    /// --
+    ///
+    /// get secret key
     fn get_secret_key(&self, _py: Python) -> PyObject {
         let secret = self.secret.to_big_int();
         let bytes = bigint2bytes(&secret).unwrap();
         PyBytes::new(_py, &bytes).to_object(_py)
     }
 
+    /// get_public_key() -> bytes
+    /// --
+    ///
+    /// get public key
     fn get_public_key(&self, _py: Python) -> PyObject {
         let public = self.public.get_element().serialize();
         PyBytes::new(_py, &public).to_object(_py)
     }
 
+    /// get_single_sign(message: bytes) -> tuple
+    /// --
+    ///
+    /// get signature from single signer
+    /// return R(32b) and s(32b)
     fn get_single_sign(&self, _py: Python, message: &PyBytes) -> PyObject {
         let message = message.as_bytes();
         let base_point: GE = ECPoint::generator();
@@ -76,12 +93,16 @@ impl PyKeyPair {
         ]).to_object(_py)
     }
 
-    /// do not forget to pass through a hash function
+    /// get_shared_point(public: bytes) -> bytes
+    /// --
+    ///
+    /// get shared point by multiple with public key
     fn get_shared_point(&self, _py: Python, public: &PyBytes) -> PyResult<PyObject> {
+        // note: do not forget to pass through a hash function
         let public: GE = bytes2point(public.as_bytes())?;
         let point: GE = public.scalar_mul(&self.secret.get_element());
         let point = point.get_element().serialize();
-        Ok(PyObject::from(PyBytes::new(_py, &point)))
+        Ok(PyBytes::new(_py, &point).to_object(_py))
     }
 }
 

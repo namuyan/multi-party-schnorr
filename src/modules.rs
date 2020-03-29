@@ -14,7 +14,7 @@ use threadpool::ThreadPool;
 use std::sync::mpsc::channel;
 
 
-/// verify_aggregate_sign(sig: bytes, R: bytes, apk: bytes, message: bytes, is_musig=None) -> bool
+/// verify_aggregate_sign(sig: bytes, R: bytes, apk: bytes, message: bytes, is_musig: bool = None) -> bool
 /// --
 ///
 /// verify aggregate signature (1of 1 and n of n)
@@ -59,7 +59,7 @@ fn verify_auto(_py: Python, s: &PyBytes, r: &PyBytes, apk: &PyBytes, message: &P
     Ok(is_verify.to_object(_py))
 }
 
-/// verify_auto_multi(tasks: list, n_workers: int, f_raise: bool) -> List[bool]
+/// verify_auto_multi(tasks: list, n_workers: int, f_raise: bool) -> list
 /// --
 ///
 /// verify many signature with detection on multi-core(1 of 1, n of n and n of m)
@@ -113,7 +113,7 @@ fn summarize_public_points(_py: Python, signers: &PyList) -> PyResult<PyObject> 
     Ok(PyBytes::new(_py, &sum).to_object(_py))
 }
 
-/// get_local_signature(share: bytes, eph_share: bytes, Y: bytes, V: bytes, message: bytes) -> (bytes, bytes)
+/// get_local_signature(share: bytes, eph_share: bytes, Y: bytes, V: bytes, message: bytes) -> tuple
 /// --
 ///
 /// return e and gamma

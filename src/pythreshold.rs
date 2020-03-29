@@ -37,6 +37,14 @@ pub struct PyThresholdKey {
 
 #[pymethods]
 impl PyThresholdKey {
+
+    /// generate(t: int, n: int, parties_index: list = None) -> PyThresholdKey
+    /// --
+    ///
+    /// generate random threshold key (ex. [0, 1, 2, 3, 4])
+    /// t: required number of cosigner (ex. 3)
+    /// n: total number of cosigner (ex. 5)
+    /// parties_index: (ex. [0, 1, 3] means signed by 0+1+3)
     #[classmethod]
     fn generate(_cls: &PyType, _py: Python, t: usize, n: usize, parties_index: Option<&PyList>)
         -> PyResult<PyThresholdKey> {
@@ -63,6 +71,15 @@ impl PyThresholdKey {
         Ok(PyThresholdKey { keypair, my_index, parties_index, t, n})
     }
 
+    /// from_secret_key(t: int, , n: int, secret: bytes, my_index: int, parties_index: list = None) -> PyThresholdKey
+    /// --
+    ///
+    /// generate threshold key from secret (ex. [0, 1, 2, 3, 4])
+    /// t: required number of cosigner (ex. 3)
+    /// n: total number of cosigner (ex. 5)
+    /// secret: my threshold secret key
+    /// my_index: my index on party list (ex. 1)
+    /// parties_index: (ex. [0, 1, 3] means signed by 0+1+3)
     #[classmethod]
     fn from_secret_key(_cls: &PyType, _py: Python, t: usize, n: usize, secret: &PyBytes, my_index: usize, parties_index: Option<&PyList>)
         -> PyResult<PyThresholdKey> {
@@ -78,6 +95,10 @@ impl PyThresholdKey {
         Ok(PyThresholdKey { keypair, my_index, parties_index, t, n})
     }
 
+    /// get_commitment() -> tuple
+    /// --
+    ///
+    /// return blind_factor(32b) & commitment(32b)
     fn get_commitment(&self, _py: Python) -> PyObject {
         let blind_factor = BigInt::sample(256);
         let commitment = HashCommitment::create_commitment_with_user_defined_randomness(
@@ -92,6 +113,10 @@ impl PyThresholdKey {
         ]).to_object(_py)
     }
 
+    /// get_variable_secret_sharing() -> tuple
+    /// --
+    ///
+    /// return vss_point(list of 32b) and secret_scalar(list of 32b)
     fn get_variable_secret_sharing(&self, _py: Python) -> PyResult<PyObject> {
         // index users [0, 1, .., n] => [1, 2, ...,n+1]
         let (vss_scheme, secret_shares) = VerifiableSS::share_at_indices(
@@ -109,6 +134,10 @@ impl PyThresholdKey {
         ]).to_object(_py))
     }
 
+    /// keygen_t_n_parties(signers: list, vss_points: list, secret_scalars: list) -> bytes
+    /// --
+    ///
+    /// generate threshold key (t of n)
     fn keygen_t_n_parties(&mut self, _py: Python, signers: &PyList, vss_points: &PyList, secret_scalars: &PyList)
         -> PyResult<PyObject> {
         if self.n != signers.len() {

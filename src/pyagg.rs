@@ -37,6 +37,10 @@ impl PyEphemeralKey {
         PyEphemeralKey {keypair, commitment, blind_factor}
     }
 
+    /// from_keypair(keypair: PyKeyPair) -> PyEphemeralKey
+    /// --
+    ///
+    /// get ephemeral key from keypair
     #[classmethod]
     fn from_keypair(_cls: &PyType, keypair: &PyKeyPair) -> PyResult<PyEphemeralKey> {
         let (commitment, blind_factor) = HashCommitment::create_commitment(
@@ -45,6 +49,10 @@ impl PyEphemeralKey {
         Ok(PyEphemeralKey {keypair, commitment, blind_factor})
     }
 
+    /// check_commitments() -> bool
+    /// --
+    ///
+    /// check ephemeral commitments
     fn check_commitments(&self) -> bool {
         ephemeral_test_com(&self.keypair.public, &self.blind_factor, &self.commitment)
     }
@@ -65,6 +73,11 @@ pub struct PyAggregate {
 
 #[pymethods]
 impl PyAggregate {
+
+    /// generate(signers: list, ephemeral: list, keypair: PyKeyPair, eph: PyEphemeralKey) -> PyAggregate
+    /// --
+    ///
+    /// get aggregate key
     #[classmethod]
     fn generate(_cls: &PyType, signers: &PyList, ephemeral: &PyList, keypair: &PyKeyPair, eph: &PyEphemeralKey)
         -> PyResult<PyAggregate> {
@@ -108,6 +121,10 @@ impl PyAggregate {
         Ok(PyAggregate {keypair, eph, apk, hash, r_tag: r_hat, is_musig})
     }
 
+    /// get_partial_sign(message: bytes) -> bytes
+    /// --
+    ///
+    /// get partial signature of whole's
     fn get_partial_sign(&self, _py: Python, message: &PyBytes) -> PyObject {
         // compute c = H0(Rtag || apk || message)
         let message = message.as_bytes();
@@ -121,12 +138,20 @@ impl PyAggregate {
         PyBytes::new(_py, &s_i).to_object(_py)
     }
 
+    /// R() -> bytes
+    /// --
+    ///
+    /// get R point
     fn R(&self, _py: Python) -> PyObject {
         let int = self.r_tag.x_coor().unwrap();
         let bytes = bigint2bytes(&int).unwrap();
         PyBytes::new(_py, &bytes).to_object(_py)
     }
 
+    /// apk() -> bytes
+    /// --
+    ///
+    /// get shared public key
     fn apk(&self, _py: Python) -> PyObject {
         let mut bytes = self.apk.get_element().serialize();
         if self.is_musig {
@@ -135,6 +160,10 @@ impl PyAggregate {
         PyBytes::new(_py, &bytes).to_object(_py)
     }
 
+    /// add_signature_parts(s1: bytes, s2: bytes) -> bytes
+    /// --
+    ///
+    /// return a signature + another signature
     fn add_signature_parts(&self, _py: Python,  s1: &PyBytes, s2: &PyBytes) -> PyObject {
         let s1 = BigInt::from_bytes_be(s1.as_bytes());
         let s2 = BigInt::from_bytes_be(s2.as_bytes());
