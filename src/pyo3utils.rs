@@ -2,12 +2,11 @@ use emerald_city::curv::cryptographic_primitives::secret_sharing::feldman_vss::{
     VerifiableSS, ShamirSecretSharing,
 };
 use emerald_city::curv::arithmetic::traits::Converter;
-use emerald_city::curv::elliptic::curves::secp256_k1::{GE, PK};
-use emerald_city::curv::elliptic::curves::traits::ECPoint;
+use emerald_city::curv::elliptic::curves::secp256_k1::{GE, PK, FE};
+use emerald_city::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use emerald_city::curv::arithmetic::num_bigint::BigInt;
 use pyo3::prelude::*;
 use pyo3::exceptions::ValueError;
-use pyo3::types::PyList;
 
 
 /// Points type
@@ -85,33 +84,36 @@ pub fn decode_public_bytes(bytes: &[u8]) -> Result<(PyKeyType, u8), ()> {
     }
 }
 
-pub fn pylist2points(list: &PyList) -> PyResult<Vec<GE>> {
-    let points: Vec<Vec<u8>> = list.extract()?;
+
+pub fn pylist2points(list: &PyAny) -> PyResult<Vec<GE>> {
+    let points: Vec<&[u8]> = list.extract()?;
     let mut tmp = Vec::with_capacity(points.len());
     for p in points {
-        let p = bytes2point(p.as_slice())?;
+        let p = bytes2point(p)?;
         tmp.push(p);
     }
     Ok(tmp)
 }
 
-pub fn pylist2bigint(list: &PyList) -> PyResult<Vec<BigInt>> {
-    let bigints: Vec<Vec<u8>> = list.extract()?;
-    let mut tmp = Vec::with_capacity(bigints.len());
-    for int in bigints {
-        let int = BigInt::from_bytes_be(int.as_slice());
-        tmp.push(int);
-    }
-    Ok(tmp)
+
+pub fn pylist2bigint(list: &PyAny) -> PyResult<Vec<FE>> {
+    let ints: Vec<&[u8]> = list.extract()?;
+    let ints: Vec<BigInt> = ints.into_iter()
+        .map(|i| BigInt::from_bytes_be(i)).collect();
+    let ints: Vec<FE> = ints.into_iter()
+        .map(|i| ECScalar::from(&i)).collect();
+    Ok(ints)
 }
 
-pub fn pylist2vss(t: usize, n: usize, vss_points: &PyList) -> PyResult<Vec<VerifiableSS>> {
-    let vss_points: Vec<Vec<Vec<u8>>> = vss_points.extract()?;
+
+pub fn pylist2vss(t: usize, n: usize, vss_points: &PyAny)
+    -> PyResult<Vec<VerifiableSS>> {
+    let vss_points: Vec<Vec<&[u8]>> = vss_points.extract()?;
     let mut result = Vec::with_capacity(vss_points.len());
     for vss in vss_points {
         let mut inner = Vec::with_capacity(vss.len());
         for point in vss {
-            let point = bytes2point(point.as_slice())?;
+            let point = bytes2point(point)?;
             inner.push(point);
         }
         result.push(VerifiableSS {
@@ -125,18 +127,18 @@ pub fn pylist2vss(t: usize, n: usize, vss_points: &PyList) -> PyResult<Vec<Verif
     Ok(result)
 }
 
-pub fn pylist2parties_index(_py: Python, n: usize, parties_index: Option<&PyList>)
+
+pub fn pylist2parties_index(n: usize, parties_index: Option<&PyAny>)
     -> PyResult<Vec<usize>> {
-    let vec = match parties_index {
-        Some(list) => {
-            if n != list.len() {
-                return Err(ValueError::py_err("not correct parties_index length"));
+    match parties_index {
+        Some(vec) => {
+            let vec: Vec<usize> = vec.extract()?;
+            if vec.len() == n {
+                Ok(vec.into_iter().map(|i| i + 1).collect())
+            } else {
+                Err(ValueError::py_err("not correct parties_index length"))
             }
-            let tmp: Vec<usize> = list.extract()?;
-            tmp
         },
-        None => (0..n).collect()
-    };
-    let vec: Vec<usize> = vec.into_iter().map(|i| i + 1).collect();
-    Ok(vec)
+        None => Ok((0..n).map(|i| i + 1).collect()),
+    }
 }

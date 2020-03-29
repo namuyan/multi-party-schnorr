@@ -16,7 +16,7 @@ use emerald_city::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use emerald_city::curv::arithmetic::num_bigint::BigInt;
 use pyo3::prelude::*;
 use pyo3::exceptions::ValueError;
-use pyo3::types::{PyBytes,PyList,PyTuple,PyType};
+use pyo3::types::{PyBytes,PyTuple,PyType};
 use threadpool::ThreadPool;
 use std::sync::mpsc::channel;
 
@@ -38,7 +38,7 @@ pub struct PyThresholdKey {
 #[pymethods]
 impl PyThresholdKey {
 
-    /// generate(t: int, n: int, parties_index: list = None) -> PyThresholdKey
+    /// generate(t: int, n: int, parties_index: list) -> PyThresholdKey
     /// --
     ///
     /// generate random threshold key (ex. [0, 1, 2, 3, 4])
@@ -46,12 +46,12 @@ impl PyThresholdKey {
     /// n: total number of cosigner (ex. 5)
     /// parties_index: (ex. [0, 1, 3] means signed by 0+1+3)
     #[classmethod]
-    fn generate(_cls: &PyType, _py: Python, t: usize, n: usize, parties_index: Option<&PyList>)
+    fn generate(_cls: &PyType, _py: Python, t: usize, n: usize, parties_index: Option<&PyAny>)
         -> PyResult<PyThresholdKey> {
         if t >= n {
             return Err(ValueError::py_err("require \"t < n\""));
         };
-        let parties_index = pylist2parties_index(_py, n, parties_index)?;
+        let parties_index = pylist2parties_index(n, parties_index)?;
         let my_index = None;  // unknown at this point
         let keypair = generate_keypair(_py);
         {
@@ -81,7 +81,7 @@ impl PyThresholdKey {
     /// my_index: my index on party list (ex. 1)
     /// parties_index: (ex. [0, 1, 3] means signed by 0+1+3)
     #[classmethod]
-    fn from_secret_key(_cls: &PyType, _py: Python, t: usize, n: usize, secret: &PyBytes, my_index: usize, parties_index: Option<&PyList>)
+    fn from_secret_key(_cls: &PyType, _py: Python, t: usize, n: usize, secret: &PyBytes, my_index: usize, parties_index: Option<&PyAny>)
         -> PyResult<PyThresholdKey> {
         if t >= n {
             return Err(ValueError::py_err("require \"t < n\""));
@@ -90,7 +90,7 @@ impl PyThresholdKey {
         let secret: FE = ECScalar::from(&BigInt::from_bytes_be(secret.as_bytes()));
         let public: GE = ec_point.scalar_mul(&secret.get_element());
         let keypair = PyKeyPair {secret, public};
-        let parties_index = pylist2parties_index(_py, n, parties_index)?;
+        let parties_index = pylist2parties_index(n, parties_index)?;
         let my_index = Some(my_index);
         Ok(PyThresholdKey { keypair, my_index, parties_index, t, n})
     }
@@ -138,25 +138,25 @@ impl PyThresholdKey {
     /// --
     ///
     /// generate threshold key (t of n)
-    fn keygen_t_n_parties(&mut self, _py: Python, signers: &PyList, vss_points: &PyList, secret_scalars: &PyList)
+    fn keygen_t_n_parties(&mut self, _py: Python, signers: &PyAny, vss_points: &PyAny, secret_scalars: &PyAny)
         -> PyResult<PyObject> {
-        if self.n != signers.len() {
+        if self.n != signers.len().unwrap_or(0) {
             return Err(ValueError::py_err("not correct signers length"));
-        } else if self.n != vss_points.len() {
+        } else if self.n != vss_points.len().unwrap_or(0) {
             return Err(ValueError::py_err("not correct vss_points length"));
-        } else if self.n != secret_scalars.len() {
+        } else if self.n != secret_scalars.len().unwrap_or(0) {
             return Err(ValueError::py_err("not correct secret_scalars length"));
         }
 
         // convert python type => Rust type
         let signers = pylist2points(signers)?;  // = y_vec
         let vss_scheme_vec = {
-            let vss_points: Vec<Vec<Vec<u8>>> = vss_points.extract()?;
+            let vss_points: Vec<Vec<&[u8]>> = vss_points.extract()?;
             let mut tmp = Vec::with_capacity(vss_points.len());
             for vss in vss_points {
                 let mut points = Vec::with_capacity(vss.len());
                 for p in vss {
-                    let p = bytes2point(p.as_slice())?;
+                    let p = bytes2point(p)?;
                     points.push(p);
                 }
                 tmp.push(VerifiableSS {
@@ -169,12 +169,12 @@ impl PyThresholdKey {
             tmp
         };
         let secret_shares_vec = {
-            let secret_scalars: Vec<Vec<Vec<u8>>> = secret_scalars.extract()?;
+            let secret_scalars: Vec<Vec<&[u8]>> = secret_scalars.extract()?;
             let mut tmp = Vec::with_capacity(secret_scalars.len());
             for lists in secret_scalars {
                 let mut inner = Vec::with_capacity(lists.len());
                 for scalar in lists {
-                    let s: FE = ECScalar::from(&BigInt::from_bytes_be(scalar.as_slice()));
+                    let s: FE = ECScalar::from(&BigInt::from_bytes_be(scalar));
                     inner.push(s);
                 };
                 tmp.push(inner);

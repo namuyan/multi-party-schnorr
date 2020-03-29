@@ -8,7 +8,7 @@ use emerald_city::curv::elliptic::curves::traits::{ECPoint, ECScalar};
 use emerald_city::curv::arithmetic::num_bigint::BigInt;
 use pyo3::prelude::*;
 use pyo3::wrap_pyfunction;
-use pyo3::types::{PyBytes, PyList, PyTuple};
+use pyo3::types::{PyBytes, PyTuple};
 use pyo3::exceptions::ValueError;
 use threadpool::ThreadPool;
 use std::sync::mpsc::channel;
@@ -64,7 +64,7 @@ fn verify_auto(_py: Python, s: &PyBytes, r: &PyBytes, apk: &PyBytes, message: &P
 ///
 /// verify many signature with detection on multi-core(1 of 1, n of n and n of m)
 #[pyfunction]
-fn verify_auto_multi(_py: Python, tasks: &PyList, n_workers: usize, f_raise: bool)
+fn verify_auto_multi(_py: Python, tasks: &PyAny, n_workers: usize, f_raise: bool)
     -> PyResult<PyObject> {
     // verify by multi-threading
     let tasks: Vec<(Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>)> = tasks.extract()?;
@@ -105,7 +105,7 @@ fn verify_auto_multi(_py: Python, tasks: &PyList, n_workers: usize, f_raise: boo
 /// return sum of public points with prefix +6
 /// used for threshold-signature
 #[pyfunction]
-fn summarize_public_points(_py: Python, signers: &PyList) -> PyResult<PyObject> {
+fn summarize_public_points(_py: Python, signers: &PyAny) -> PyResult<PyObject> {
     let signers = pylist2points(&signers)?;
     let sum = sum_public_points(&signers)?;
     let mut sum = sum.get_element().serialize();
@@ -142,18 +142,15 @@ fn get_local_signature(_py: Python, share: &PyBytes, eph_share: &PyBytes, Y: &Py
 /// used for threshold-signature
 #[pyfunction]
 fn summarize_local_signature(
-    _py: Python, t: usize, n: usize, m: usize, e: &PyBytes, gammas: &PyList,
-    parties_index: &PyList, vss_points: &PyList, eph_vss_points: &PyList)
+    _py: Python, t: usize, n: usize, m: usize, e: &PyBytes, gammas: &PyAny,
+    parties_index: &PyAny, vss_points: &PyAny, eph_vss_points: &PyAny)
     -> PyResult<PyObject> {
     let e: FE = ECScalar::from(&BigInt::from_bytes_be(e.as_bytes()));
-    let gammas: Vec<FE> = pylist2bigint(gammas)?.iter()
-        .map(|int| ECScalar::from(int)).collect();
-    let mut tmp = Vec::with_capacity(parties_index.len());
-    for int in parties_index.iter() {
-        let int: usize = int.extract()?;
-        tmp.push(int);
+    let gammas = pylist2bigint(gammas)?;
+    if parties_index.is_none() {
+        return Err(ValueError::py_err("parties_index is not None"));
     }
-    let parties_index = tmp;
+    let parties_index: Vec<usize> = parties_index.extract()?;
     let vss_points = pylist2vss(t, n, vss_points)?;
     let eph_vss_points = pylist2vss(t, m, eph_vss_points)?;
     match sum_local_signature(t, &e, &gammas, &parties_index, &vss_points, &eph_vss_points){

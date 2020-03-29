@@ -15,7 +15,7 @@ use emerald_city::curv::arithmetic::num_bigint::BigInt;
 use num_traits::{Zero, One};
 use pyo3::prelude::*;
 use pyo3::exceptions::ValueError;
-use pyo3::types::{PyBytes,PyList,PyType};
+use pyo3::types::{PyBytes, PyType};
 
 
 #[pyclass]
@@ -79,11 +79,11 @@ impl PyAggregate {
     ///
     /// get aggregate key
     #[classmethod]
-    fn generate(_cls: &PyType, signers: &PyList, ephemeral: &PyList, keypair: &PyKeyPair, eph: &PyEphemeralKey)
+    fn generate(_cls: &PyType, signers: &PyAny, ephemeral: &PyAny, keypair: &PyKeyPair, eph: &PyEphemeralKey)
         -> PyResult<PyAggregate> {
         // check signature number
-        let signers: Vec<Vec<u8>> = signers.extract()?;
-        let ephemeral: Vec<Vec<u8>> = ephemeral.extract()?;
+        let signers: Vec<&[u8]> = signers.extract()?;
+        let ephemeral: Vec<&[u8]> = ephemeral.extract()?;
         let keypair = keypair.clone();
         let eph = eph.clone();
         if signers.len() != ephemeral.len() {
@@ -97,7 +97,7 @@ impl PyAggregate {
         let mut party_index: Option<usize> = None;
         let mut pks = Vec::with_capacity(signers.len());
         for (index, key) in signers.into_iter().enumerate() {
-            let public = bytes2point(key.as_slice())?;
+            let public = bytes2point(key)?;
             if public == keypair.public {
                 party_index = Some(index)
             }
@@ -109,7 +109,7 @@ impl PyAggregate {
         // compute R' = R1+R2:
         let mut points = Vec::with_capacity(ephemeral.len());
         for eph in ephemeral.into_iter() {
-            let eph = bytes2point(eph.as_slice())?;
+            let eph = bytes2point(eph)?;
             points.push(eph);
         };
         // sum of ephemeral points
