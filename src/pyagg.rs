@@ -256,3 +256,40 @@ pub fn verify_aggregate_signature(signature: &BigInt, r_x: &BigInt, apk: &GE, me
         Err(String::from("sG_x do not match with r_x"))
     }
 }
+
+
+#[cfg(test)]
+mod Test {
+    use crate::pyo3utils::bytes2point_inner;
+    use emerald_city::curv::arithmetic::num_bigint::BigInt;
+    use pyagg::verify_aggregate_signature;
+
+    #[test]
+    fn test_normal_single_sig() {
+        // let sk = b"\xb7\xe1Qb\x8a\xed*j\xbfqX\x80\x9c\xf4\xf3\xc7b\xe7\x16\x0f8\xb4\xdaV\xa7\x84\xd9\x04Q\x90\xcf\xef";
+        let pk = b"\x02\xdf\xf1\xd7\x7f*g\x1c_6\x187&\xdb#A\xbeX\xfe\xae\x1d\xa2\xde\xce\xd8C$\x0f{P+\xa6Y";
+        let msg = b"$?j\x88\x85\xa3\x08\xd3\x13\x19\x8a.\x03psD\xa4\t8\")\x9f1\xd0\x08.\xfa\x98\xecNl\x89";
+        let sig_a = b"*)\x8d\xac\xaeW9Z\x15\xd0y]\xdb\xfd\x1d\xcbVM\xa8+\x0f&\x9b\xc7\nt\xf8\"\x04)\xba\x1d";
+        let sig_b = b"\x1eQ\xa2,\xce\xc3U\x99\xb8\xf2f\x91\"\x81\xf86_\xfc-\x03Z#\x044\xa1\xa6M\xc5\x9fp\x13\xfd";
+
+        let pk = bytes2point_inner(pk).unwrap();
+        let sig_a = BigInt::from_bytes_be(sig_a);
+        let sig_b = BigInt::from_bytes_be(sig_b);
+        assert!(verify_aggregate_signature(&sig_b, &sig_a, &pk, msg, false).is_ok());
+    }
+
+
+    #[test]
+    fn test_zerofill_single_sig() {
+        // let sk = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01";
+        let pk = b"\x02y\xbef~\xf9\xdc\xbb\xacU\xa0b\x95\xce\x87\x0b\x07\x02\x9b\xfc\xdb-\xce(\xd9Y\xf2\x81[\x16\xf8\x17\x98";
+        let msg = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+        let sig_a = b"xz\x84\x8eq\x04=(\x0cPG\x0e\x8e\x152\xb2\xdd] \xee\x91*E\xdb\xdd+\xd1\xdf\xbf\x18~\xf6";  // r
+        let sig_b = b"p1\xa9\x881\x85\x9d\xc3M\xff\xee\xdd\xa8h1\x84,\xcd\x00y\xe1\xf9*\xf1w\xf7\xf2,\xc1\xdc\xed\x05";  // s
+
+        let pk = bytes2point_inner(pk).unwrap();
+        let sig_a = BigInt::from_bytes_be(sig_a);
+        let sig_b = BigInt::from_bytes_be(sig_b);
+        assert!(verify_aggregate_signature(&sig_b, &sig_a, &pk, msg, false).is_ok());
+    }
+}
